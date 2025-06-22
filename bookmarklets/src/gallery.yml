@@ -6,7 +6,7 @@
 #
 # 📝 使用方法:
 #   1. JSファイルを src/productivity/ または src/development/ に作成
-#   2. このファイルの bookmarklets セクションに設定を追加  
+#   2. このファイルの bookmarklets セクションに設定を追加
 #   3. npm run build でギャラリーを生成
 #
 # 🎯 設定例:
@@ -32,20 +32,41 @@ gallery:
 # ブックマークレットを分類するカテゴリを定義します
 # 新しいカテゴリを追加する場合は、ここに設定を追加してください
 categories:
+  utility:
+    name: "🛠️ Utility Tools"
+    description: "URL操作、言語切り替え、ファイルダウンロードなどの便利ツール"
+    order: 1
+
   productivity:
     name: "🎯 Productivity Tools"
     description: "日常業務の効率化ツール"
-    order: 1
-  
-  development:
-    name: "🛠️ Development Tools"
-    description: "開発・デバッグ支援ツール"
     order: 2
+
+  development:
+    name: "� Development Tools"
+    description: "開発・デバッグ支援ツール"
+    order: 3
 
 # ブックマークレット定義
 # 公開するブックマークレットをここに定義します
 # enabled: false にすることで一時的に非公開にできます
-bookmarklets:
+bookmarklets: # Utility Tools
+  - id: "utility-tools"
+    file: "utility-tools.js"
+    category: "utility"
+    title: "🛠️ Utility Tools"
+    icon: "🔧"
+    description: "URL操作、言語切り替え、Officeダウンロードなどの便利機能を統合したマルチツール"
+    features:
+      - "URL エンコード・デコード（クリップボード対応）"
+      - "多言語URL切り替え (en/ja, en-us/ja-jp)"
+      - "Office 365 文書の直接ダウンロード"
+      - "HTTP→HTTPS変換"
+      - "クエリパラメータ削除"
+      - "ページ情報の詳細取得"
+      - "直感的なパネルUI"
+    enabled: true
+
   # Productivity Tools
   - id: "hello-world"
     file: "hello-world.js"
@@ -58,7 +79,7 @@ bookmarklets:
       - "ページ情報表示"
       - "実行時刻表示"
     enabled: false
-    
+
   - id: "debug-test"
     file: "debug-test.js"
     category: "productivity"
@@ -70,7 +91,7 @@ bookmarklets:
       - "エラー診断"
       - "環境確認"
     enabled: false
-    
+
   - id: "simple-test"
     file: "simple-test.js"
     category: "productivity"
@@ -82,7 +103,7 @@ bookmarklets:
       - "パネル表示テスト"
       - "スタイリングテスト"
     enabled: false
-    
+
   - id: "page-analyzer"
     file: "page-analyzer.js"
     category: "productivity"
@@ -94,7 +115,7 @@ bookmarklets:
       - "SEO分析"
       - "パフォーマンス確認"
     enabled: false
-    
+
   - id: "sharepoint-navigator"
     file: "sharepoint-navigator.js"
     category: "productivity"
@@ -119,7 +140,7 @@ bookmarklets:
       - "CSS編集"
       - "レスポンシブ確認"
     enabled: false
-    
+
   - id: "api-tester"
     file: "api-tester.js"
     category: "development"
@@ -131,7 +152,7 @@ bookmarklets:
       - "レスポンス表示"
       - "API開発支援"
     enabled: false
-    
+
   - id: "sharepoint-api-navigator"
     file: "sharepoint-api-navigator.js"
     category: "development"
@@ -146,7 +167,7 @@ bookmarklets:
     enabled: true
 
   - id: "experimental-tool"
-    file: "debug-test.js"  # 既存ファイルを使用
+    file: "debug-test.js" # 既存ファイルを使用
     category: "development"
     title: "🧪 Experimental Tool"
     icon: "⚗️"
@@ -155,25 +176,27 @@ bookmarklets:
       - "新機能のテスト"
       - "実験的API使用"
       - "パフォーマンス検証"
-    enabled: false  # 無効化
+    enabled: false # 無効化
 
 # ビルド設定
 # ギャラリー生成時の動作を制御します
 # 通常は変更不要ですが、カスタマイズが必要な場合に調整してください
 build:
   # 自動検出設定（enabledがtrueの場合のみビルド対象）
-  autoDetect: true
-  
-  # ファイル検索ディレクトリ（JSファイルの検索パス）
+  autoDetect:
+    true
+    # ファイル検索ディレクトリ（JSファイルの検索パス）
   searchDirs:
-    - "./src/productivity"    # 生産性ツール格納ディレクトリ
-    - "./src/development"     # 開発ツール格納ディレクトリ
-  
+    - "./src/utility" # ユーティリティツール格納ディレクトリ
+    - "./src/productivity" # 生産性ツール格納ディレクトリ
+    - "./src/development" # 開発ツール格納ディレクトリ
+
   # 出力ファイル（生成されるギャラリーHTMLファイル）
   outputFile: "./dist/install.html"
-  
+
   # minify設定（JavaScriptコードの圧縮）
-  minify: true
+  minify:
+    true
     # 開発モード（詳細なコメント・ログ出力）
   development: false
 
@@ -182,13 +205,13 @@ build:
   devPage:
     # 裏ページを生成するか
     generate: true
-    
+
     # 裏ページのファイル名
     filename: "dev.html"
-    
+
     # メインページから裏ページへのリンクを表示するか
     showLinkFromMain: true
-    
+
     # 裏ページでのdisabledブックマークレットの表示方法
     disabledDisplay:
       # 表示するか（false の場合は完全に非表示）
