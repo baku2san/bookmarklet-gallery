@@ -36,6 +36,14 @@ jobs:  # ビルドジョブ
       with:
         node-version: '18'
         cache: 'npm'
+        cache-dependency-path: './bookmarklets/package.json'
+        
+    - name: 📦 Install dependencies
+      working-directory: ./bookmarklets
+      run: npm ci
+      
+    - name: 🔨 Build bookmarklets
+      working-directory: ./bookmarklets
       run: npm run build
       
     - name: 📁 Prepare GitHub Pages content
