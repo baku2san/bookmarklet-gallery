@@ -1,0 +1,38 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "🔍 現在のJSファイルをデバッグ",
+      "type": "node",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/bookmarklets",
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NODE_ENV": "development"
+      }
+    },
+    {
+      "name": "🏗️ ビルドスクリプトをデバッグ",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/bookmarklets/build-production.js",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/bookmarklets",
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NODE_ENV": "development"
+      }
+    },
+    {
+      "name": "🌐 ブラウザでinstall.htmlを開く",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/.bin/http-server",
+      "args": ["${workspaceFolder}/bookmarklets", "-p", "3000", "-o"],
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}

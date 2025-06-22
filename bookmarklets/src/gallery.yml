@@ -1,0 +1,199 @@
+# =============================================================================
+# 🔖 Bookmarklet Gallery 公開設定
+# =============================================================================
+# このファイルは、ブックマークレットギャラリーの公開設定を管理します。
+# 新しいブックマークレットを追加する場合は、bookmarkletsセクションに追加してください。
+#
+# 📝 使用方法:
+#   1. JSファイルを src/productivity/ または src/development/ に作成
+#   2. このファイルの bookmarklets セクションに設定を追加  
+#   3. npm run build でギャラリーを生成
+#
+# 🎯 設定例:
+#   - id: "my-tool"              # 一意のID（英数字、ハイフン）
+#     file: "my-tool.js"         # JSファイル名
+#     category: "productivity"   # カテゴリ（productivity/development）
+#     title: "My Tool"           # 表示名
+#     icon: "⚡"                # アイコン（絵文字推奨）
+#     description: "説明"        # 詳細説明
+#     features:                  # 機能リスト
+#       - "機能1"
+#       - "機能2"
+#     enabled: true              # 公開フラグ（false で一時無効化）
+# =============================================================================
+
+# ギャラリー設定
+gallery:
+  title: "🔖 Shima Bookmarklets"
+  description: "生産性向上と開発支援のためのブックマークレット集"
+  version: "1.0.0"
+
+# カテゴリ設定
+# ブックマークレットを分類するカテゴリを定義します
+# 新しいカテゴリを追加する場合は、ここに設定を追加してください
+categories:
+  productivity:
+    name: "🎯 Productivity Tools"
+    description: "日常業務の効率化ツール"
+    order: 1
+  
+  development:
+    name: "🛠️ Development Tools"
+    description: "開発・デバッグ支援ツール"
+    order: 2
+
+# ブックマークレット定義
+# 公開するブックマークレットをここに定義します
+# enabled: false にすることで一時的に非公開にできます
+bookmarklets:
+  # Productivity Tools
+  - id: "hello-world"
+    file: "hello-world.js"
+    category: "productivity"
+    title: "Hello World"
+    icon: "👋"
+    description: "設定ファイル対応テスト用ブックマークレット"
+    features:
+      - "基本動作確認"
+      - "ページ情報表示"
+      - "実行時刻表示"
+    enabled: false
+    
+  - id: "debug-test"
+    file: "debug-test.js"
+    category: "productivity"
+    title: "Debug Test"
+    icon: "🐛"
+    description: "ブックマークレットのデバッグ・診断ツール"
+    features:
+      - "実行確認"
+      - "エラー診断"
+      - "環境確認"
+    enabled: false
+    
+  - id: "simple-test"
+    file: "simple-test.js"
+    category: "productivity"
+    title: "Simple Test"
+    icon: "🧪"
+    description: "シンプルなテスト用ブックマークレット"
+    features:
+      - "動作確認"
+      - "パネル表示テスト"
+      - "スタイリングテスト"
+    enabled: false
+    
+  - id: "page-analyzer"
+    file: "page-analyzer.js"
+    category: "productivity"
+    title: "Page Analyzer"
+    icon: "📊"
+    description: "ページ構造・メタデータ分析ツール"
+    features:
+      - "ページ情報表示"
+      - "SEO分析"
+      - "パフォーマンス確認"
+    enabled: false
+    
+  - id: "sharepoint-navigator"
+    file: "sharepoint-navigator.js"
+    category: "productivity"
+    title: "SharePoint Navigator"
+    icon: "🧭"
+    description: "SharePoint サイト内ナビゲーションツール"
+    features:
+      - "サイト構造表示"
+      - "リスト・ライブラリ一覧"
+      - "クイックアクセス"
+    enabled: true
+
+  # Development Tools
+  - id: "css-inspector"
+    file: "css-inspector.js"
+    category: "development"
+    title: "CSS Inspector"
+    icon: "🎨"
+    description: "CSS 開発・デバッグツール"
+    features:
+      - "要素スタイル表示"
+      - "CSS編集"
+      - "レスポンシブ確認"
+    enabled: false
+    
+  - id: "api-tester"
+    file: "api-tester.js"
+    category: "development"
+    title: "API Tester"
+    icon: "🔌"
+    description: "API エンドポイントのテスト"
+    features:
+      - "HTTPリクエスト送信"
+      - "レスポンス表示"
+      - "API開発支援"
+    enabled: false
+    
+  - id: "sharepoint-api-navigator"
+    file: "sharepoint-api-navigator.js"
+    category: "development"
+    title: "SharePoint API Navigator"
+    icon: "🔗"
+    description: "SharePoint REST API の探索・テストツール"
+    features:
+      - "APIエンドポイント選択"
+      - "レスポンス表示（JSON/テーブル）"
+      - "フィルタリング・ソート"
+      - "Lists API詳細表示"
+    enabled: true
+
+  - id: "experimental-tool"
+    file: "debug-test.js"  # 既存ファイルを使用
+    category: "development"
+    title: "🧪 Experimental Tool"
+    icon: "⚗️"
+    description: "実験的機能のテストブックマークレット（開発中）"
+    features:
+      - "新機能のテスト"
+      - "実験的API使用"
+      - "パフォーマンス検証"
+    enabled: false  # 無効化
+
+# ビルド設定
+# ギャラリー生成時の動作を制御します
+# 通常は変更不要ですが、カスタマイズが必要な場合に調整してください
+build:
+  # 自動検出設定（enabledがtrueの場合のみビルド対象）
+  autoDetect: true
+  
+  # ファイル検索ディレクトリ（JSファイルの検索パス）
+  searchDirs:
+    - "./src/productivity"    # 生産性ツール格納ディレクトリ
+    - "./src/development"     # 開発ツール格納ディレクトリ
+  
+  # 出力ファイル（生成されるギャラリーHTMLファイル）
+  outputFile: "./dist/install.html"
+  
+  # minify設定（JavaScriptコードの圧縮）
+  minify: true
+    # 開発モード（詳細なコメント・ログ出力）
+  development: false
+
+  # 開発者向け裏ページ設定
+  # enabled:false のブックマークレットも含めた完全版ページを生成
+  devPage:
+    # 裏ページを生成するか
+    generate: true
+    
+    # 裏ページのファイル名
+    filename: "dev.html"
+    
+    # メインページから裏ページへのリンクを表示するか
+    showLinkFromMain: true
+    
+    # 裏ページでのdisabledブックマークレットの表示方法
+    disabledDisplay:
+      # 表示するか（false の場合は完全に非表示）
+      show: true
+      # 表示時のスタイル（grayed-out, warning-banner, separate-section）
+      style: "warning-banner"
+      # 警告メッセージ
+      warningText: "⚠️ 開発中・テスト中のブックマークレットです"

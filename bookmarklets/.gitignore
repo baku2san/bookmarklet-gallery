@@ -1,0 +1,21 @@
+# 依存関係
+node_modules/
+npm-debug.log*
+
+# 生成物（ビルド成果物）
+dist/
+
+# OS固有ファイル
+.DS_Store
+Thumbs.db
+
+# エディタ固有ファイル
+*.swp
+*.swo
+
+# ログファイル
+*.log
+
+# 一時ファイル
+*.tmp
+*.temp

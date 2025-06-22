@@ -1,0 +1,83 @@
+{
+  // ファイル関連設定
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 1000,
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/.git": true,
+    "**/dist": false,
+    "**/.nyc_output": true,
+    "**/coverage": true
+  },
+
+  // JavaScript/TypeScript設定
+  "javascript.preferences.includePackageJsonAutoImports": "auto",
+  "javascript.updateImportsOnFileMove.enabled": "always",
+  "javascript.validate.enable": true,
+
+  // エディタ設定
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.wordWrap": "on",
+  "editor.rulers": [80, 120],
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+
+  // Prettier設定
+  "prettier.tabWidth": 2,
+  "prettier.semi": true,
+  "prettier.singleQuote": true,
+  "prettier.trailingComma": "es5",
+
+  // Emmet設定（HTML/CSS用）
+  "emmet.includeLanguages": {
+    "javascript": "html"
+  },
+
+  // 探索設定
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist/*.html": false,
+    "**/.git": true,
+    "**/coverage": true
+  },
+
+  // ターミナル設定
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.cwd": "${workspaceFolder}/bookmarklets",
+
+  // Live Server設定（HTMLプレビュー用）
+  "liveServer.settings.root": "/bookmarklets",
+  "liveServer.settings.port": 3000,
+  "liveServer.settings.donotShowInfoMsg": true,
+
+  // ブックマークレット開発用のファイル関連付け
+  "files.associations": {
+    "*.js": "javascript"
+  },
+
+  // GitLens設定
+  "gitlens.codeLens.enabled": true,
+  "gitlens.currentLine.enabled": true,
+
+  // Markdown設定
+  "markdown.preview.fontSize": 14,
+  "markdown.preview.lineHeight": 1.6,
+
+  // Copilot設定
+  "chat.agent.enabled": true,
+  "chat.agent.maxRequests": 25,
+  "chat.editing.autoAcceptDelay": 5,
+  "github.copilot.chat.agent.autoFix": true,
+  "github.copilot.chat.agent.thinkingTool": true,
+  "github.copilot.chat.codesearch.enabled": true,
+  "github.copilot.chat.edits.suggestRelatedFilesForTests": true,
+  "github.copilot.chat.edits.suggestRelatedFilesFromGitHistory": true,
+  "github.copilot.chat.localeOverride": "ja",
+  "github.copilot.nextEditSuggestions.enabled": true,
+  "github.copilot.nextEditSuggestions.fixes": true
+}

@@ -1,0 +1,127 @@
+{
+  // JavaScript用スニペット
+  "Bookmarklet Template": {
+    "prefix": "bookmarklet",
+    "body": [
+      "/**",
+      " * ${1:ブックマークレット名}",
+      " * ${2:説明}",
+      " * @version ${3:1.0.0}",
+      " * @author ${4:作成者}",
+      " */",
+      "(function() {",
+      "  'use strict';",
+      "  ",
+      "  // メイン処理",
+      "  ${5:// ここにコードを書く}",
+      "  ",
+      "  console.log('${1:ブックマークレット名}が実行されました');",
+      "})();"
+    ],
+    "description": "ブックマークレットの基本テンプレート"
+  },
+  
+  "Console Log": {
+    "prefix": "log",
+    "body": [
+      "console.log('$1');"
+    ],
+    "description": "コンソールログ出力"
+  },
+  
+  "DOM Element Selector": {
+    "prefix": "sel",
+    "body": [
+      "const $1 = document.querySelector('$2');"
+    ],
+    "description": "DOM要素の選択"
+  },
+  
+  "SharePoint API Call": {
+    "prefix": "spapi",
+    "body": [
+      "// SharePoint REST API呼び出し",
+      "fetch('${1:/_api/web}', {",
+      "  method: '${2:GET}',",
+      "  headers: {",
+      "    'Accept': 'application/json;odata=verbose',",
+      "    'Content-Type': 'application/json;odata=verbose'",
+      "  }",
+      "})",
+      ".then(response => response.json())",
+      ".then(data => {",
+      "  console.log(data);",
+      "  $3",
+      "})",
+      ".catch(error => {",
+      "  console.error('エラー:', error);",
+      "});"
+    ],
+    "description": "SharePoint REST API呼び出しテンプレート"
+  },
+  
+  "Error Handler": {
+    "prefix": "try",
+    "body": [
+      "try {",
+      "  $1",
+      "} catch (error) {",
+      "  console.error('エラーが発生しました:', error);",
+      "  alert('処理中にエラーが発生しました: ' + error.message);",
+      "}"
+    ],
+    "description": "エラーハンドリング"
+  },
+  
+  "CSS Injection": {
+    "prefix": "css",
+    "body": [
+      "// CSSスタイルの挿入",
+      "const style = document.createElement('style');",
+      "style.textContent = `",
+      "  $1",
+      "`;",
+      "document.head.appendChild(style);"
+    ],
+    "description": "CSSスタイル挿入"
+  },
+  
+  "Wait for Element": {
+    "prefix": "wait",
+    "body": [
+      "// 要素の読み込み待機",
+      "function waitForElement(selector, timeout = 5000) {",
+      "  return new Promise((resolve, reject) => {",
+      "    const element = document.querySelector(selector);",
+      "    if (element) {",
+      "      resolve(element);",
+      "      return;",
+      "    }",
+      "    ",
+      "    const observer = new MutationObserver(() => {",
+      "      const element = document.querySelector(selector);",
+      "      if (element) {",
+      "        observer.disconnect();",
+      "        resolve(element);",
+      "      }",
+      "    });",
+      "    ",
+      "    observer.observe(document.body, {",
+      "      childList: true,",
+      "      subtree: true",
+      "    });",
+      "    ",
+      "    setTimeout(() => {",
+      "      observer.disconnect();",
+      "      reject(new Error('要素が見つかりませんでした'));",
+      "    }, timeout);",
+      "  });",
+      "}",
+      "",
+      "waitForElement('$1').then(element => {",
+      "  $2",
+      "});"
+    ],
+    "description": "要素の読み込み待機"
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "name": "bookmarklet-gallery",
+  "version": "1.0.0",
+  "description": "Interactive gallery of useful bookmarklets including SharePoint Navigator, API tools, and other productivity utilities.",
+  "main": "build-production.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "scripts": {
+    "build": "node build-production.js",
+    "dev": "node build-production.js && echo 'ファイルが更新されました。ブラウザでdist/install.htmlを確認してください。'",
+    "watch": "nodemon --watch src/ --ext js,yml --exec \"npm run dev\"",
+    "clean": "if (Test-Path dist) { Remove-Item -Recurse -Force dist }",
+    "setup": "npm install",
+    "setup:build": "npm install && npm run build",
+    "setup:watch": "npm install && npm run watch",
+    "preview": "npm run build && npx http-server dist -p 3000 -o",
+    "serve": "npx http-server dist -p 3000 -o",
+    "deploy:check": "npm run build && echo '🔍 Deployment check: dist/install.html and dist/dev.html generated successfully'",
+    "security:audit": "npm audit",
+    "security:fix": "npm audit fix",
+    "preinstall": "echo '📦 ブックマークレットギャラリー - 依存関係をインストール中...'",
+    "postinstall": "echo '✅ インストール完了！npm run build でビルドを実行してください。'",
+    "test": "echo 'No tests specified'"
+  },
+  "keywords": [
+    "bookmarklets",
+    "productivity",
+    "sharepoint",
+    "development",
+    "javascript",
+    "web-tools",
+    "browser-tools",
+    "api-tools"
+  ],
+  "author": {
+    "name": "Bookmarklet Gallery Contributors",
+    "url": "https://github.com/baku2san/bookmarklet-gallery"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baku2san/bookmarklet-gallery.git"
+  },
+  "bugs": {
+    "url": "https://github.com/baku2san/bookmarklet-gallery/issues"
+  },
+  "homepage": "https://baku2san.github.io/bookmarklet-gallery",
+  "devDependencies": {
+    "js-yaml": "^4.1.0",
+    "nodemon": "^3.1.7",
+    "terser": "^5.36.0",
+    "http-server": "^14.1.1"
+  }
+}
