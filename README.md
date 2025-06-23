@@ -20,11 +20,15 @@ Interactive gallery of useful bookmarklets including SharePoint Navigator, API t
 - **📊 Page Analyzer** - ページ構造・メタデータ分析ツール
 - **🧭 SharePoint Navigator** - SharePoint サイト内ナビゲーションツール
 
+![SharePoint Navigator Demo](assets/SharepointNavigator.gif)
+
 ### 🛠️ Development Tools
 
 - **🎨 CSS Inspector** - CSS 開発・デバッグツール
 - **🔌 API Tester** - API エンドポイントのテスト
 - **🔗 SharePoint API Navigator** - SharePoint REST API の探索・テストツール
+
+![SharePoint API Navigator Demo](assets/SharepointAPINavigator.gif)
 
 ## 🚀 Quick Start
 
