@@ -223,7 +223,110 @@ javascript: (() => {
         console.warn('ローカルストレージからの読み込みに失敗:', e);
         return defaultValue;
       }
-    }
+    },
+
+    // クリップボード用の安全なエスケープ
+    escapeForClipboard(value) {
+      if (value === null || value === undefined) {
+        return '';
+      }
+
+      const str = String(value);
+      // JavaScriptの文字列リテラル用のエスケープ
+      return str.replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r')
+        .replace(/\t/g, '\\t');
+    },
+
+    // 一時メッセージ表示
+    showTemporaryMessage(message, type = 'success', duration = 3000) {
+      // 既存のメッセージがあれば削除
+      const existingMessage = document.getElementById('shima-temp-message');
+      if (existingMessage) {
+        existingMessage.remove();
+      }
+
+      // メッセージ要素を作成
+      const messageDiv = document.createElement('div');
+      messageDiv.id = 'shima-temp-message';
+
+      const bgColor = type === 'success' ? '#d4edda' : type === 'error' ? '#f8d7da' : '#fff3cd';
+      const borderColor = type === 'success' ? '#c3e6cb' : type === 'error' ? '#f5c6cb' : '#ffeaa7';
+      const textColor = type === 'success' ? '#155724' : type === 'error' ? '#721c24' : '#856404';
+
+      messageDiv.style.cssText = `
+        position: fixed !important;
+        top: 80px !important;
+        right: 20px !important;
+        background: ${bgColor} !important;
+        border: 1px solid ${borderColor} !important;
+        border-radius: 6px !important;
+        padding: 12px 16px !important;
+        color: ${textColor} !important;
+        font-family: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.FONT_FAMILY} !important;
+        font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.SMALL} !important;
+        font-weight: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.WEIGHTS.MEDIUM} !important;
+        box-shadow: ${SHAREPOINT_DESIGN_SYSTEM.SHADOWS.CARD} !important;
+        z-index: 2147483647 !important;
+        max-width: 400px !important;
+        word-wrap: break-word !important;
+        animation: shimaCopyMessageSlideIn 0.3s ease-out !important;
+        cursor: pointer !important;
+      `;
+
+      messageDiv.innerHTML = message;
+
+      // クリックで削除
+      messageDiv.addEventListener('click', () => {
+        messageDiv.remove();
+      });
+
+      // アニメーションCSSを追加（一度だけ）
+      if (!document.getElementById('shima-copy-animation-styles')) {
+        const style = document.createElement('style');
+        style.id = 'shima-copy-animation-styles';
+        style.textContent = `
+          @keyframes shimaCopyMessageSlideIn {
+            from {
+              transform: translateX(100%) !important;
+              opacity: 0 !important;
+            }
+            to {
+              transform: translateX(0) !important;
+              opacity: 1 !important;
+            }
+          }
+          @keyframes shimaCopyMessageSlideOut {
+            from {
+              transform: translateX(0) !important;
+              opacity: 1 !important;
+            }
+            to {
+              transform: translateX(100%) !important;
+              opacity: 0 !important;
+            }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+
+      document.body.appendChild(messageDiv);
+
+      // 指定時間後に削除
+      setTimeout(() => {
+        if (messageDiv.parentNode) {
+          messageDiv.style.animation = 'shimaCopyMessageSlideOut 0.3s ease-in';
+          setTimeout(() => {
+            if (messageDiv.parentNode) {
+              messageDiv.remove();
+            }
+          }, 300);
+        }
+      }, duration);
+    },
   };
 
   // SharePoint API エンドポイント定義
@@ -623,11 +726,16 @@ javascript: (() => {
       const importantFields = Utils.getImportantFields(sampleItem, endpoint.id);
 
       let tableHtml = '<div style="flex: 1 !important; overflow: auto !important; border: 1px solid #ddd !important; border-radius: 4px !important; min-height: 0 !important;">';
-      tableHtml += '<table style="width: 100% !important; border-collapse: collapse !important; font-size: 12px !important; min-width: 800px !important;">';
-
-      // ヘッダー
+      tableHtml += '<table id="shima-data-table" style="width: 100% !important; border-collapse: collapse !important; font-size: 12px !important; min-width: 800px !important;">';      // ヘッダー
       tableHtml += '<thead><tr style="background: #f8f9fa !important; position: sticky !important; top: 0 !important; z-index: 10 !important;">';
-      importantFields.forEach(field => {
+
+      // 選択列のヘッダーを追加
+      tableHtml += `<th style="border: 1px solid #ddd !important; padding: 8px !important; text-align: center !important;
+                      font-weight: bold !important; white-space: nowrap !important; background: #f8f9fa !important;
+                      width: 50px !important; min-width: 50px !important; max-width: 50px !important;"
+                      title="リスト選択">
+                      <span style="font-size: 12px;">選択</span>
+                    </th>`; importantFields.forEach((field, index) => {
         let fieldTitle = Utils.escapeHtml(field);
         let helpText = '';
 
@@ -637,32 +745,142 @@ javascript: (() => {
           fieldTitle = `<span title="SharePointで自動生成される一意の識別子です">${fieldTitle}</span>`;
         }
 
-        tableHtml += `<th style="border: 1px solid #ddd !important; padding: 8px !important; text-align: left !important;
-                        font-weight: bold !important; white-space: nowrap !important; background: #f8f9fa !important;">
-                        ${fieldTitle}${helpText}</th>`;
+        // データ列のインデックスは選択列分を考慮して +1
+        tableHtml += `<th data-column="${index + 1}" data-field="${field}" style="border: 1px solid #ddd !important; padding: 8px !important; text-align: left !important;
+                        font-weight: bold !important; white-space: nowrap !important; background: #f8f9fa !important;
+                        cursor: pointer !important; user-select: none !important; position: relative !important;"
+                        title="クリックでソート"
+                        onmouseover="this.style.backgroundColor='#e9ecef'"
+                        onmouseout="this.style.backgroundColor='#f8f9fa'">
+                        ${fieldTitle}${helpText}
+                        <span class="shima-sort-indicator" style="margin-left: 5px; color: #999; font-size: 10px;">⇅</span>
+                      </th>`;
       });
-      tableHtml += '</tr></thead>';
-
-      // データ行
+      tableHtml += '</tr></thead>';      // データ行
       tableHtml += '<tbody>';
       data.forEach((item, index) => {
         const rowStyle = index % 2 === 0 ? 'background: white !important;' : 'background: #f9f9f9 !important;';
-        tableHtml += `<tr style="${rowStyle} cursor: pointer !important; transition: background-color 0.2s ease !important;"
+        tableHtml += `<tr style="${rowStyle} transition: background-color 0.2s ease !important;"
                       data-row-index="${index}"
+                      data-item-id="${item.Id || index}"
                       onmouseover="this.style.backgroundColor='rgba(0, 123, 255, 0.05)'"
                       onmouseout="this.style.backgroundColor='${index % 2 === 0 ? 'white' : '#f9f9f9'}'">`;
 
-        importantFields.forEach(field => {
+        // 選択用のラジオボタン的なセルを先頭に追加
+        tableHtml += `<td style="border: 1px solid #ddd !important; padding: 8px !important; text-align: center !important;
+                        width: 50px !important; min-width: 50px !important; max-width: 50px !important;
+                        cursor: pointer !important;"
+                        title="クリックでリストを選択"
+                        onclick="event.stopPropagation(); (function(cell, rowIndex) {
+                          const table = cell.closest('table');
+                          const allRows = table.querySelectorAll('tbody tr');
+                          const allSelectors = table.querySelectorAll('.shima-row-selector');
+                          
+                          // 全ての選択を解除
+                          allRows.forEach(r => {
+                            r.classList.remove('shima-selected-row');
+                            r.style.backgroundColor = '';
+                          });
+                          allSelectors.forEach(s => {
+                            s.textContent = '○';
+                            s.style.color = '#999';
+                          });
+                          
+                          // 現在の行を選択
+                          const currentRow = cell.closest('tr');
+                          const currentSelector = cell.querySelector('.shima-row-selector');
+                          
+                          currentRow.classList.add('shima-selected-row');
+                          currentRow.style.backgroundColor = 'rgba(0, 123, 255, 0.15)';
+                          currentSelector.textContent = '●';
+                          currentSelector.style.color = '#0078d4';
+                          
+                          // 選択されたアイテムの情報を更新
+                          window.shimaSelectedItem = {
+                            index: rowIndex,
+                            id: currentRow.dataset.itemId,
+                            data: window.shimaCurrentData ? window.shimaCurrentData[rowIndex] : null
+                          };
+                          
+                          // 選択されたリスト名を更新
+                          if (window.shimaSelectedItem.data && window.shimaSelectedItem.data.Title) {
+                            const nameSpan = document.getElementById('shima-selected-list-name');
+                            if (nameSpan) {
+                              nameSpan.textContent = window.shimaSelectedItem.data.Title;
+                            }
+                          }
+                        })(this, ${index})">
+                        <span class="shima-row-selector" style="font-size: 16px; color: #999;">○</span>
+                      </td>`; importantFields.forEach((field, columnIndex) => {
           const value = Utils.getNestedValue(item, field);
           const displayValue = Utils.formatValue(value, field);
           const cellWidth = ['Title', 'Name', 'Description'].includes(field)
             ? 'min-width: 200px !important;'
             : 'min-width: 120px !important;';
 
-          tableHtml += `<td style="border: 1px solid #ddd !important; padding: 8px !important;
+          // データ列のインデックスは選択列分を考慮して +1
+          tableHtml += `<td data-column="${columnIndex + 1}" data-field="${field}" data-value="${Utils.escapeHtml(String(value))}" 
+                        style="border: 1px solid #ddd !important; padding: 8px !important;
                         max-width: ${CONFIG.MAX_CELL_LENGTH}px !important; overflow: hidden !important;
-                        text-overflow: ellipsis !important; white-space: nowrap !important; ${cellWidth}"
-                        title="${Utils.escapeHtml(String(value))}">${displayValue}</td>`;
+                        text-overflow: ellipsis !important; white-space: nowrap !important; ${cellWidth}
+                        cursor: pointer !important;"
+                        title="クリック: セル値をコピー / 値: ${Utils.escapeHtml(String(value))}"                        onclick="(function(cell) {
+                          const value = cell.dataset.value || cell.textContent.trim();
+                          const fieldName = cell.dataset.field || 'データ';
+                          
+                          navigator.clipboard.writeText(value).then(() => {
+                            // セルの背景色変更（視覚的フィードバック）
+                            const originalBg = cell.style.backgroundColor;
+                            cell.style.backgroundColor = '#d4edda';
+                            cell.style.transition = 'background-color 0.3s ease';
+                            setTimeout(() => { 
+                              cell.style.backgroundColor = originalBg; 
+                              cell.style.transition = 'background-color 0.2s ease';
+                            }, 800);
+                              // 一時メッセージ表示
+                            const truncatedValue = value.length > 50 ? value.substring(0, 50) + '...' : value;
+                            const message = \`
+                              <div style='display: flex; align-items: center; gap: 8px;'>
+                                <span style='font-size: 16px;'>📋</span>
+                                <div>
+                                  <div style='font-weight: bold; margin-bottom: 2px;'>コピー完了</div>
+                                  <div style='font-size: 11px; opacity: 0.8;'>\${fieldName}: \${truncatedValue}</div>
+                                </div>
+                              </div>
+                            \`;
+                            
+                            // グローバル関数を使用してメッセージ表示
+                            if (typeof window.shimaShowMessage === 'function') {
+                              window.shimaShowMessage(message, 'success', 2500);
+                            } else {
+                              console.log('コピー完了:', fieldName, value);
+                            }
+                          }).catch(err => {
+                            console.warn('クリップボードへのコピーに失敗:', err);
+                            const originalBg = cell.style.backgroundColor;
+                            cell.style.backgroundColor = '#f8d7da';
+                            setTimeout(() => { 
+                              cell.style.backgroundColor = originalBg; 
+                            }, 800);
+                              // エラーメッセージ表示
+                            const errorMessage = \`
+                              <div style='display: flex; align-items: center; gap: 8px;'>
+                                <span style='font-size: 16px;'>❌</span>
+                                <div>
+                                  <div style='font-weight: bold; margin-bottom: 2px;'>コピー失敗</div>
+                                  <div style='font-size: 11px; opacity: 0.8;'>クリップボードへのアクセスに失敗しました</div>
+                                </div>
+                              </div>
+                            \`;
+                            
+                            // グローバル関数を使用してエラーメッセージ表示
+                            if (typeof window.shimaShowMessage === 'function') {
+                              window.shimaShowMessage(errorMessage, 'error', 3000);
+                            } else {
+                              console.warn('コピー失敗:', err);
+                            }
+                          });
+                        })(this)">${displayValue}</td>`;
         });
 
         tableHtml += '</tr>';
@@ -780,10 +998,12 @@ javascript: (() => {
           </div>
         `;
         return;
-      }
-
-      const uiManager = new UIManager('', this.apiEndpoints);
+      } const uiManager = new UIManager('', this.apiEndpoints);
       const table = uiManager.createTable(results, endpoint);
+
+      // 現在のデータをグローバルに保存（選択機能で使用）
+      window.shimaCurrentData = results;
+      window.shimaSelectedItem = null;
 
       resultsArea.innerHTML = `
         <div style="margin-bottom: 12px !important; font-size: 12px !important; color: #666 !important;">
@@ -829,35 +1049,14 @@ javascript: (() => {
     saveResults(data) {
       const results = data.d ? (data.d.results || [data.d]) : [data];
       Utils.saveToStorage(CONFIG.STORAGE_KEY, results);
-    }    // リスト選択機能設定（簡易版）
+    }    // リスト選択機能設定（ラジオボタン方式）
     setupListSelection(resultsArea, results) {
-      let selectedListId = null;
-      let selectedListTitle = null;
+      // ラジオボタン形式の選択機能は、既にテーブル生成時にonclick属性で実装済み
+      // 追加で必要な機能があればここに実装
 
-      const tableRows = resultsArea.querySelectorAll('tbody tr');
-      tableRows.forEach((row, index) => {
-        row.addEventListener('click', () => {
-          // 既存の選択を解除
-          tableRows.forEach(r => {
-            r.style.backgroundColor = '';
-            r.classList.remove('shima-selected-row');
-          });
-
-          // 新しい選択を設定
-          row.style.backgroundColor = 'rgba(0, 123, 255, 0.1)';
-          row.classList.add('shima-selected-row'); if (results[index]) {
-            this.selectedListId = results[index].Id;
-            this.selectedListTitle = results[index].Title;
-
-            // 選択されたリスト名を更新
-            this.updateSelectedListName(this.selectedListTitle);
-          }
-        });
-      });      // コントロールパネルのボタンイベント設定
+      // コントロールパネルのボタンイベント設定
       this.setupControlPanelListButtons();
-    }
-
-    // コントロールパネルのリストボタン設定
+    }    // コントロールパネルのリストボタン設定
     setupControlPanelListButtons() {
       const detailsBtn = document.getElementById('shima-show-list-details');
       const fieldsBtn = document.getElementById('shima-show-list-fields');
@@ -865,31 +1064,36 @@ javascript: (() => {
 
       if (detailsBtn) {
         detailsBtn.addEventListener('click', () => {
-          if (!this.selectedListId) {
-            alert('リストを選択してください。テーブル行をクリックしてリストを選択してから実行してください。');
+          if (!window.shimaSelectedItem || !window.shimaSelectedItem.data) {
+            alert('リストを選択してください。行の左端の○ボタンをクリックしてリストを選択してから実行してください。');
             return;
           }
-          const endpoint = this.apiEndpoints.createListDetailEndpoint(this.selectedListId, this.selectedListTitle);
+          const selectedData = window.shimaSelectedItem.data;
+          const endpoint = this.apiEndpoints.createListDetailEndpoint(selectedData.Id, selectedData.Title);
           this.executeApi(endpoint);
         });
       }
 
       if (fieldsBtn) {
         fieldsBtn.addEventListener('click', () => {
-          if (!this.selectedListId) {
-            alert('リストを選択してください。テーブル行をクリックしてリストを選択してから実行してください。');
+          if (!window.shimaSelectedItem || !window.shimaSelectedItem.data) {
+            alert('リストを選択してください。行の左端の○ボタンをクリックしてリストを選択してから実行してください。');
             return;
           }
-          const endpoint = this.apiEndpoints.createListFieldsEndpoint(this.selectedListId, this.selectedListTitle);
+          const selectedData = window.shimaSelectedItem.data;
+          const endpoint = this.apiEndpoints.createListFieldsEndpoint(selectedData.Id, selectedData.Title);
           this.executeApi(endpoint);
         });
-      } if (itemsBtn) {
+      }
+
+      if (itemsBtn) {
         itemsBtn.addEventListener('click', () => {
-          if (!this.selectedListId) {
-            alert('リストを選択してください。テーブル行をクリックしてリストを選択してから実行してください。');
+          if (!window.shimaSelectedItem || !window.shimaSelectedItem.data) {
+            alert('リストを選択してください。行の左端の○ボタンをクリックしてリストを選択してから実行してください。');
             return;
           }
-          const endpoint = this.apiEndpoints.createListItemsEndpoint(this.selectedListId, this.selectedListTitle);
+          const selectedData = window.shimaSelectedItem.data;
+          const endpoint = this.apiEndpoints.createListItemsEndpoint(selectedData.Id, selectedData.Title);
           this.executeApi(endpoint);
         });
       }
@@ -898,13 +1102,69 @@ javascript: (() => {
     // コンテキスト更新
     updateContext(endpoint) {
       const contextDiv = document.getElementById('shima-current-context');
-      if (contextDiv) {
+      if (contextDiv && endpoint) {
         contextDiv.style.display = 'block';
+
+        // エンドポイントタイプ別の表示内容を決定
+        let displayText = '';
+
         if (endpoint.id.startsWith('list-')) {
-          contextDiv.innerHTML = `📊 表示中: ${endpoint.title}`;
+          // リスト詳細系
+          displayText = `📊 表示中: ${endpoint.title}`;
         } else {
-          contextDiv.innerHTML = `📊 表示中: ${endpoint.title} (${endpoint.description})`;
+          // 基本的なエンドポイント
+          const title = endpoint.title || 'Unknown';
+          const description = endpoint.description || '';
+
+          // 特定のエンドポイントに対する詳細な説明
+          switch (endpoint.id) {
+            case 'contentTypes':
+              displayText = `📊 表示中: ${title} - サイトのコンテンツタイプ定義`;
+              break;
+            case 'webs':
+              displayText = `📊 表示中: ${title} - サブサイト一覧`;
+              break;
+            case 'lists':
+              displayText = `📊 表示中: ${title} - サイト内のリスト・ライブラリ`;
+              break;
+            case 'siteColumns':
+              displayText = `📊 表示中: ${title} - サイト列定義`;
+              break;
+            case 'features':
+              displayText = `📊 表示中: ${title} - アクティブな機能`;
+              break;
+            case 'users':
+              displayText = `📊 表示中: ${title} - サイトユーザー`;
+              break;
+            case 'groups':
+              displayText = `📊 表示中: ${title} - サイトグループ`;
+              break;
+            case 'roleAssignments':
+              displayText = `📊 表示中: ${title} - 権限割り当て`;
+              break;
+            case 'roleDefinitions':
+              displayText = `📊 表示中: ${title} - 権限レベル定義`;
+              break;
+            case 'eventReceivers':
+              displayText = `📊 表示中: ${title} - イベントレシーバー`;
+              break;
+            case 'workflows':
+              displayText = `📊 表示中: ${title} - ワークフロー`;
+              break;
+            case 'recycleBin':
+              displayText = `📊 表示中: ${title} - ごみ箱アイテム`;
+              break;
+            default:
+              if (description) {
+                displayText = `📊 表示中: ${title} - ${description}`;
+              } else {
+                displayText = `📊 表示中: ${title}`;
+              }
+              break;
+          }
         }
+
+        contextDiv.innerHTML = displayText;
       }
     }
 
@@ -981,15 +1241,27 @@ javascript: (() => {
       this.currentSelectedEndpoint = null;
     }    // イベントリスナー設定
     setupEventListeners() {
-      this.setupCloseButton();
-      this.setupSidebarToggle();
-      this.setupExecuteButton();
-      this.setupClearButton();
-      this.setupBackButton();
-      this.setupFilterInput();
-      this.setupViewModeChange();
-      this.setupEndpointSelection();
-      this.setupResize();
+      try {
+        this.setupCloseButton();
+        this.setupSidebarToggle();
+        this.setupExecuteButton();
+        this.setupClearButton();
+        this.setupBackButton();
+        this.setupFilterInput();
+        this.setupViewModeChange();
+        this.setupEndpointSelection();
+        this.setupTableSort();
+
+        // setupResizeメソッドの存在確認
+        if (typeof this.setupResize === 'function') {
+          this.setupResize();
+        } else {
+          console.warn('setupResizeメソッドが見つかりません');
+        }
+      } catch (error) {
+        console.error('イベントリスナー設定中にエラー:', error);
+        throw error;
+      }
     }
 
     // 閉じるボタン
@@ -1105,18 +1377,39 @@ javascript: (() => {
     // テーブルフィルター適用
     applyTableFilter() {
       const filterInput = document.getElementById('shima-filter-input');
-      const filterText = filterInput ? filterInput.value.toLowerCase() : '';
+      const filterText = filterInput ? filterInput.value.toLowerCase().trim() : '';
       const table = document.querySelector('#shima-results-area table');
 
       if (!table) return;
 
       const rows = table.querySelectorAll('tbody tr');
       let visibleCount = 0;
+      let totalCount = rows.length;
 
-      rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        if (text.includes(filterText)) {
+      rows.forEach((row, index) => {
+        let shouldShow = true;
+
+        if (filterText) {
+          // 行のテキスト内容をチェック
+          const rowText = row.textContent.toLowerCase();
+          // さらに詳細な検索のために、セルのdata-value属性もチェック
+          const cells = row.querySelectorAll('td[data-value]');
+          const cellValues = Array.from(cells).map(cell => cell.dataset.value.toLowerCase()).join(' ');
+
+          shouldShow = rowText.includes(filterText) || cellValues.includes(filterText);
+        }
+
+        if (shouldShow) {
           row.style.display = '';
+          // 表示される行の背景色を再計算
+          const bgColor = visibleCount % 2 === 0 ? 'white' : '#f9f9f9';
+          row.style.backgroundColor = bgColor;
+
+          // hover効果を再設定
+          row.onmouseout = function () {
+            this.style.backgroundColor = bgColor;
+          };
+
           visibleCount++;
         } else {
           row.style.display = 'none';
@@ -1124,12 +1417,21 @@ javascript: (() => {
       });
 
       // 結果カウントを更新
+      this.updateResultsCount(visibleCount, totalCount, filterText);
+    }
+
+    // 結果カウント更新
+    updateResultsCount(visibleCount, totalCount, filterText) {
       const countDiv = document.querySelector('#shima-results-area > div:first-child');
       if (countDiv && countDiv.textContent.includes('件の結果')) {
         if (filterText) {
-          countDiv.textContent = `${visibleCount} 件の結果 (フィルター適用中)`;
+          if (visibleCount === totalCount) {
+            countDiv.textContent = `${totalCount} 件の結果`;
+          } else {
+            countDiv.innerHTML = `<span style="color: #0078d4; font-weight: bold;">${visibleCount}</span> 件の結果 (全 ${totalCount} 件から絞り込み)`;
+          }
         } else {
-          countDiv.textContent = `${rows.length} 件の結果`;
+          countDiv.textContent = `${totalCount} 件の結果`;
         }
       }
     }
@@ -1192,59 +1494,180 @@ javascript: (() => {
       } else {
         console.warn('APIエンドポイント要素が見つかりました');
       }
+    }    // テーブルソート機能設定
+    setupTableSort() {
+      // 既存のイベントリスナーがある場合は削除
+      if (window.shimaTableSortHandler) {
+        document.removeEventListener('click', window.shimaTableSortHandler);
+      }
+
+      // 新しいイベントハンドラーを作成
+      window.shimaTableSortHandler = (event) => {
+        const th = event.target.closest('th[data-column]');
+        if (!th) return;
+
+        const table = th.closest('table');
+        if (!table || !table.id || table.id !== 'shima-data-table') return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const columnIndex = parseInt(th.dataset.column);
+        const fieldName = th.dataset.field;
+
+        console.log('ソートクリック:', columnIndex, fieldName); // デバッグ用
+
+        this.sortTable(table, columnIndex, fieldName, th);
+      };
+
+      // イベントリスナーを追加
+      document.addEventListener('click', window.shimaTableSortHandler);
+    }
+
+    // テーブルソート実行
+    sortTable(table, columnIndex, fieldName, headerCell) {
+      const tbody = table.querySelector('tbody');
+      if (!tbody) return;
+
+      const rows = Array.from(tbody.rows);
+
+      // 現在のソート状態を取得
+      const currentSort = headerCell.dataset.sortDirection || 'none';
+      let newSort = 'asc';
+
+      if (currentSort === 'asc') {
+        newSort = 'desc';
+      } else if (currentSort === 'desc') {
+        newSort = 'none';
+      }
+
+      // 全てのヘッダーのソート表示をリセット
+      table.querySelectorAll('th .shima-sort-indicator').forEach(indicator => {
+        indicator.textContent = '⇅';
+        indicator.parentElement.dataset.sortDirection = 'none';
+      });
+
+      // ソート実行
+      if (newSort === 'none') {
+        // 元の順序に戻す（data-row-index順）
+        rows.sort((a, b) => {
+          const indexA = parseInt(a.dataset.rowIndex);
+          const indexB = parseInt(b.dataset.rowIndex);
+          return indexA - indexB;
+        });
+      } else {
+        rows.sort((a, b) => {
+          const cellA = a.cells[columnIndex];
+          const cellB = b.cells[columnIndex];
+
+          if (!cellA || !cellB) return 0;
+
+          let valueA = cellA.dataset.value || cellA.textContent.trim();
+          let valueB = cellB.dataset.value || cellB.textContent.trim();
+
+          // 数値として解析を試みる
+          const numA = parseFloat(valueA);
+          const numB = parseFloat(valueB);
+
+          if (!isNaN(numA) && !isNaN(numB)) {
+            // 数値ソート
+            return newSort === 'asc' ? numA - numB : numB - numA;
+          } else {
+            // 文字列ソート
+            valueA = String(valueA).toLowerCase();
+            valueB = String(valueB).toLowerCase();
+
+            if (newSort === 'asc') {
+              return valueA.localeCompare(valueB);
+            } else {
+              return valueB.localeCompare(valueA);
+            }
+          }
+        });
+      }
+
+      // ソート表示を更新
+      const indicator = headerCell.querySelector('.shima-sort-indicator');
+      if (indicator) {
+        if (newSort === 'asc') {
+          indicator.textContent = '▲';
+        } else if (newSort === 'desc') {
+          indicator.textContent = '▼';
+        } else {
+          indicator.textContent = '⇅';
+        }
+      }
+
+      headerCell.dataset.sortDirection = newSort;
+
+      // 行の背景色を再設定
+      rows.forEach((row, index) => {
+        const newStyle = index % 2 === 0 ? 'background: white !important;' : 'background: #f9f9f9 !important;';
+        row.style.cssText = row.style.cssText.replace(/background: [^;]*!important;/g, '') + newStyle;
+
+        // hover効果を再設定
+        const originalBg = index % 2 === 0 ? 'white' : '#f9f9f9';
+        row.onmouseout = function () {
+          this.style.backgroundColor = originalBg;
+        };
+      });
+
+      // DOMに反映
+      rows.forEach(row => tbody.appendChild(row));
     }
 
     // リサイズ処理
     setupResize() {
+      const panel = document.getElementById(CONFIG.PANEL_ID);
+      if (!panel) return;
+
+      // ウィンドウリサイズ時の処理
       const handleResize = () => {
-        const panel = document.getElementById(CONFIG.PANEL_ID);
-        const sidebar = document.getElementById('shima-sidebar');
-        const windowWidth = window.innerWidth;
-        const windowHeight = window.innerHeight;
-        const toggleBtn = document.getElementById('shima-toggle-sidebar');
+        const maxWidth = Math.max(800, window.innerWidth - 40);
+        const maxHeight = Math.max(500, window.innerHeight - 40);
 
-        // パネルの高さをウィンドウサイズに合わせて調整
-        if (panel) {
-          const maxHeight = Math.min(windowHeight * 0.9, 800);
-          const maxWidth = Math.min(windowWidth * 0.95, 1200);
+        panel.style.maxWidth = `${maxWidth}px`;
+        panel.style.maxHeight = `${maxHeight}px`;
 
-          // パネルサイズが最大値を超えている場合は調整
-          const currentHeight = panel.offsetHeight;
-          const currentWidth = panel.offsetWidth;
+        // パネルが画面外に出ていないかチェック
+        const rect = panel.getBoundingClientRect();
 
-          if (currentHeight > maxHeight) {
-            panel.style.height = maxHeight + 'px';
-          }
-          if (currentWidth > maxWidth) {
-            panel.style.width = maxWidth + 'px';
-          }
-
-          // パネルが画面外に出ている場合は位置を調整
-          const rect = panel.getBoundingClientRect();
-          if (rect.bottom > windowHeight) {
-            panel.style.top = Math.max(10, windowHeight - panel.offsetHeight - 10) + 'px';
-          }
-          if (rect.right > windowWidth) {
-            panel.style.left = Math.max(10, windowWidth - panel.offsetWidth - 10) + 'px';
-          }
+        if (rect.right > window.innerWidth) {
+          panel.style.left = `${window.innerWidth - rect.width - 10}px`;
         }
 
-        // サイドバーの表示制御
-        if (windowWidth < 768) {
-          // モバイルサイズの場合、サイドバーを初期状態で隠す
-          if (sidebar) sidebar.style.marginLeft = '-280px';
-          if (toggleBtn) toggleBtn.textContent = '📱 メニュー';
-        } else {
-          // デスクトップサイズの場合、サイドバーを表示
-          if (sidebar) sidebar.style.marginLeft = '0';
-          if (toggleBtn) toggleBtn.textContent = '📅 拡大';
+        if (rect.bottom > window.innerHeight) {
+          panel.style.top = `${window.innerHeight - rect.height - 10}px`;
+        }
+
+        if (rect.left < 0) {
+          panel.style.left = '10px';
+        }
+
+        if (rect.top < 0) {
+          panel.style.top = '10px';
         }
       };
 
-      // 初期サイズ調整
+      // 初期リサイズ
       handleResize();
-      // ウィンドウリサイズ時の処理
+
+      // ウィンドウリサイズイベント
       window.addEventListener('resize', handleResize);
+
+      // パネルが削除された時にイベントリスナーを削除
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          mutation.removedNodes.forEach((node) => {
+            if (node === panel) {
+              window.removeEventListener('resize', handleResize);
+              observer.disconnect();
+            }
+          });
+        });
+      });
+
+      observer.observe(document.body, { childList: true });
     }
   }
 
@@ -1377,8 +1800,10 @@ javascript: (() => {
       document.head.appendChild(style);
     }
   }
-
   // アプリケーション実行
+  // グローバルスコープにUtilsの関数を露出（onclick属性からアクセスするため）
+  window.shimaShowMessage = Utils.showTemporaryMessage.bind(Utils);
+
   const app = new SharePointApiNavigator();
   app.init();
 
