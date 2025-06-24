@@ -106,7 +106,7 @@ function escapeHtml(text) {
 async function minifyForProduction(content) {
   try {
     // 先頭のjavascript:プレフィックスを削除
-    content = content.replace(/^\s*javascript:\s*/i, '').trim();    // Terserを使用してminify
+    content = content.replace(/^\s*javascript:\s*/i, '').trim(); // Terserを使用してminify
     const result = await minify(content, {
       compress: {
         dead_code: true,
@@ -131,13 +131,13 @@ async function minifyForProduction(content) {
         expression: false,
         keep_fnames: false,
         keep_infinity: false,
-        passes: 2
+        passes: 2,
       },
       mangle: {
         toplevel: true,
         eval: false,
         keep_fnames: false,
-        reserved: ['alert', 'console', 'document', 'window'] // 重要なグローバル変数は保護
+        reserved: ['alert', 'console', 'document', 'window'], // 重要なグローバル変数は保護
       },
       format: {
         ascii_only: false,
@@ -155,8 +155,8 @@ async function minifyForProduction(content) {
         semicolons: true,
         shebang: false,
         webkit: false,
-        wrap_iife: false
-      }
+        wrap_iife: false,
+      },
     });
 
     if (result.error) {
@@ -185,9 +185,9 @@ function fallbackMinify(content) {
 
   // 余分な空白・改行を削除
   content = content
-    .replace(/\n\s*/g, ' ')           // 改行と空白を1つの空白に
-    .replace(/\s*([{}();,=+\-*\/:?!<>])\s*/g, '$1')  // 演算子周辺の空白削除
-    .replace(/\s+/g, ' ')            // 連続する空白を1つに
+    .replace(/\n\s*/g, ' ') // 改行と空白を1つの空白に
+    .replace(/\s*([{}();,=+\-*\/:?!<>])\s*/g, '$1') // 演算子周辺の空白削除
+    .replace(/\s+/g, ' ') // 連続する空白を1つに
     .trim();
 
   return content;
@@ -298,10 +298,7 @@ function findBookmarkletFile(filename) {
   }
 
   // 従来の固定パス検索（後方互換性）
-  const legacyPaths = [
-    path.join('./productivity', filename),
-    path.join('./development', filename)
-  ];
+  const legacyPaths = [path.join('./productivity', filename), path.join('./development', filename)];
 
   for (const filePath of legacyPaths) {
     if (fs.existsSync(filePath)) {
@@ -328,7 +325,9 @@ async function processBookmarkletFile(filePath) {
       const finalSize = processed.length;
       const reduction = Math.round((1 - finalSize / originalSize) * 100);
 
-      console.log(`📦 ${path.basename(filePath)}: ${originalSize} → ${finalSize} bytes (${reduction}% reduction)`);
+      console.log(
+        `📦 ${path.basename(filePath)}: ${originalSize} → ${finalSize} bytes (${reduction}% reduction)`
+      );
     } else {
       processed = content;
       console.log(`📄 ${path.basename(filePath)}: minify無効 (${content.length} bytes)`);
@@ -365,15 +364,19 @@ async function generateBookmarkletCard(bookmarklet, isDevPage = false) {
     bookmarkletCode = `javascript:alert('${bookmarklet.title} は未実装です');`;
   }
 
-  const featuresHtml = bookmarklet.features ?
-    bookmarklet.features.map(f => `<li>${f}</li>`).join('') : '';
+  const featuresHtml = bookmarklet.features
+    ? bookmarklet.features.map(f => `<li>${f}</li>`).join('')
+    : '';
 
   // 無効なブックマークレット用の警告とスタイル
   const disabledClass = isDisabled && isDevPage ? ' bookmarklet-disabled' : '';
-  const disabledWarning = isDisabled && isDevPage && devPageConfig.disabledDisplay?.show !== false ? `
+  const disabledWarning =
+    isDisabled && isDevPage && devPageConfig.disabledDisplay?.show !== false
+      ? `
                     <div class="disabled-warning">
                         ${devPageConfig.disabledDisplay?.warningText || '⚠️ 開発中・テスト中のブックマークレットです'}
-                    </div>` : '';
+                    </div>`
+      : '';
 
   return `
                 <div class="bookmarklet-card${disabledClass}">
@@ -385,11 +388,15 @@ async function generateBookmarkletCard(bookmarklet, isDevPage = false) {
                         </div>
                     </div>
                     ${disabledWarning}
-                    ${featuresHtml ? `
+                    ${
+                      featuresHtml
+                        ? `
                     <div class="bookmarklet-features">
                         <h4>主な機能:</h4>
                         <ul>${featuresHtml}</ul>
-                    </div>` : ''}
+                    </div>`
+                        : ''
+                    }
                     <div class="bookmarklet-install">
                         <a href="${escapeHtml(bookmarkletCode)}" class="bookmarklet-link">
                             📌 ${bookmarklet.title}
@@ -450,7 +457,8 @@ async function generateGalleryHtml(bookmarkletsToInclude, isDevPage = false) {
   const allCategoriesHtml = sortedCategories
     .map((categoryKey, index) => {
       const categoryHtml = categoryHtmlSections[categoryKey] || '';
-      const separator = index < sortedCategories.length - 1 ? '<div class="category-separator"></div>' : '';
+      const separator =
+        index < sortedCategories.length - 1 ? '<div class="category-separator"></div>' : '';
       return categoryHtml + separator;
     })
     .join('');
@@ -469,34 +477,42 @@ async function generateGalleryHtml(bookmarkletsToInclude, isDevPage = false) {
  */
 function createHtmlTemplate(isDevPage = false) {
   const galleryTitle = config.gallery?.title || '🔖 Bookmarklet Gallery';
-  const galleryDescription = config.gallery?.description || 'Interactive gallery of useful bookmarklets';
+  const galleryDescription =
+    config.gallery?.description || 'Interactive gallery of useful bookmarklets';
   const devPageConfig = BUILD_CONFIG.devPage || {};
 
   const pageTitle = isDevPage ? `${galleryTitle} (開発版)` : galleryTitle;
 
   // 開発者向けリンク（本番ページの右下にひっそりと配置）
-  const devLinkHtml = (!isDevPage && devPageConfig.showLinkFromMain !== false) ? `
+  const devLinkHtml =
+    !isDevPage && devPageConfig.showLinkFromMain !== false
+      ? `
         <div class="dev-link-footer">
             <a href="./${devPageConfig.filename || 'dev.html'}" class="dev-link-small">
                 🔧 開発者向け
             </a>
-        </div>` : '';
+        </div>`
+      : '';
 
-  const devPageWarning = isDevPage ? `
+  const devPageWarning = isDevPage
+    ? `
         <div class="dev-warning">
             <h3>⚠️ 開発者向けページ</h3>
             <p>このページには enabled:false のブックマークレットも含まれています。</p>
             <p><a href="./install.html">← 通常ページに戻る</a></p>
-        </div>` : '';
+        </div>`
+    : '';
 
   // 開発戦略説明（開発者向けページでのみ表示）
-  const developmentStrategy = isDevPage ? `
+  const developmentStrategy = isDevPage
+    ? `
             <div class="build-strategy">
                 <h3>📋 開発戦略</h3>
                 <p><strong>開発版:</strong> 可読性重視（コメント・フォーマット保持）</p>
                 <p><strong>本番版:</strong> Terser使用でアグレッシブ最適化（最大サイズ削減）</p>
                 <p><strong>圧縮効果:</strong> 変数名短縮、デッドコード除去、構文最適化</p>
-            </div>` : '';
+            </div>`
+    : '';
 
   return `<!DOCTYPE html>
 <html lang="ja">
