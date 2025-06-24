@@ -152,7 +152,6 @@ bookmarklets: # Utility Tools
       - "レスポンス表示"
       - "API開発支援"
     enabled: false
-
   - id: "sharepoint-api-navigator"
     file: "sharepoint-api-navigator.js"
     category: "development"
@@ -165,6 +164,21 @@ bookmarklets: # Utility Tools
       - "フィルタリング・ソート"
       - "Lists API詳細表示"
     enabled: true
+
+  - id: "edge-explorer"
+    file: "edge-explorer.js"
+    category: "development"
+    title: "Edge Explorer"
+    icon: "🔍"
+    description: "Microsoft Edge ブラウザの機能探索・検証ツール"
+    features:
+      - "Edge ブラウザ検出と詳細情報取得"
+      - "利用可能な Web API の包括的調査"
+      - "パフォーマンス・メモリ使用量監視"
+      - "拡張機能API の検出と分析"
+      - "ブックマークレット制約の可視化"
+      - "非同期API（Battery, Storage等）の状態確認"
+    enabled: false
 
   - id: "experimental-tool"
     file: "debug-test.js" # 既存ファイルを使用
