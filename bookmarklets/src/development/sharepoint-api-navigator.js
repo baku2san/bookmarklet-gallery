@@ -178,14 +178,14 @@ javascript: (() => {
       }
       if (typeof value === 'object') {
         return '<em style="color: #666 !important;">[Object]</em>';
-      }
-      if (field.toLowerCase().includes('date') && value) {
+      } if (field.toLowerCase().includes('date') && value) {
         try {
           return new Date(value).toLocaleString('ja-JP');
         } catch (e) {
           return this.escapeHtml(String(value));
         }
-      } return this.escapeHtml(String(value));
+      }
+      return this.escapeHtml(String(value));
     },
 
     // ========== API Navigator固有ユーティリティ関数 ==========
@@ -193,17 +193,27 @@ javascript: (() => {
     // 重要なフィールドを取得
     getImportantFields(item, endpointId) {
       const allFields = Object.keys(item);
+
+      // SharePointのフィールドデータかどうかを自動判定
+      const isFieldData = allFields.includes('InternalName') && allFields.includes('TypeAsString');
+
       const fieldPriority = {
-        'lists': ['Title', 'BaseTemplate', 'ItemCount', 'Created', 'LastItemModifiedDate', 'Id'],
+        'lists': ['Title', 'BaseTemplate', 'ItemCount', 'Id', 'Created', 'LastItemModifiedDate'],
         'users': ['Title', 'LoginName', 'Email', 'IsSiteAdmin', 'Id'],
         'groups': ['Title', 'Description', 'Owner', 'Users', 'Id'],
         'web': ['Title', 'Url', 'Created', 'Language', 'WebTemplate', 'Id'],
         'webs': ['Title', 'Url', 'Created', 'WebTemplate', 'Id'],
         'contentTypes': ['Name', 'Id', 'Group', 'Hidden'],
-        'features': ['DisplayName', 'DefinitionId', 'Id']
+        'features': ['DisplayName', 'DefinitionId', 'Id'],
+        'list-fields': ['InternalName', 'Title', 'TypeAsString', 'Id', 'Required', 'Hidden', 'ReadOnlyField']
       };
 
-      const priority = fieldPriority[endpointId] || [];
+      // フィールドデータの場合は自動的にlist-fieldsの優先度を使用
+      let priority = fieldPriority[endpointId] || [];
+      if (isFieldData && !priority.length) {
+        priority = fieldPriority['list-fields'];
+      }
+
       const result = [];
 
       // 優先フィールドを追加
