@@ -184,7 +184,172 @@ javascript: (function () {
   // =============================================================================
   // ユーティリティ関数
   // =============================================================================
-  const Utils = {    /**
+  const Utils = {
+    // ========== 共通ユーティリティ関数 ==========
+
+    // HTML エスケープ
+    escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    },
+
+    // ネストした値を取得
+    getNestedValue(obj, path) {
+      return path.split('.').reduce((current, key) => {
+        return current && current[key] !== undefined ? current[key] : '';
+      }, obj);
+    },
+
+    // 値をフォーマット
+    formatValue(value, field) {
+      if (value === null || value === undefined) {
+        return '<em style="color: #999 !important;">null</em>';
+      }
+      if (typeof value === 'boolean') {
+        return value ? '✓' : '✗';
+      }
+      if (typeof value === 'object') {
+        return '<em style="color: #666 !important;">[Object]</em>';
+      }
+      if (field && field.toLowerCase().includes('date') && value) {
+        try {
+          return new Date(value).toLocaleString('ja-JP');
+        } catch (e) {
+          return this.escapeHtml(String(value));
+        }
+      }
+      return this.escapeHtml(String(value));
+    },
+
+    // ローカルストレージへの保存
+    saveToStorage(key, data) {
+      try {
+        localStorage.setItem(key, JSON.stringify(data));
+        return true;
+      } catch (e) {
+        console.warn('ローカルストレージへの保存に失敗:', e);
+        return false;
+      }
+    },
+
+    // ローカルストレージからの読み込み
+    loadFromStorage(key, defaultValue = null) {
+      try {
+        const data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : defaultValue;
+      } catch (e) {
+        console.warn('ローカルストレージからの読み込みに失敗:', e);
+        return defaultValue;
+      }
+    },
+
+    // クリップボード用の安全なエスケープ
+    escapeForClipboard(value) {
+      if (value === null || value === undefined) {
+        return '';
+      }
+
+      const str = String(value);
+      // JavaScriptの文字列リテラル用のエスケープ
+      return str.replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r')
+        .replace(/\t/g, '\\t');
+    },
+
+    // 一時メッセージ表示
+    showTemporaryMessage(message, type = 'success', duration = 3000) {
+      // 既存のメッセージがあれば削除
+      const existingMessage = document.getElementById('shima-temp-message');
+      if (existingMessage) {
+        existingMessage.remove();
+      }
+
+      // メッセージ要素を作成
+      const messageDiv = document.createElement('div');
+      messageDiv.id = 'shima-temp-message';
+
+      const bgColor = type === 'success' ? '#d4edda' : type === 'error' ? '#f8d7da' : '#fff3cd';
+      const borderColor = type === 'success' ? '#c3e6cb' : type === 'error' ? '#f5c6cb' : '#ffeaa7';
+      const textColor = type === 'success' ? '#155724' : type === 'error' ? '#721c24' : '#856404';
+
+      messageDiv.style.cssText = `
+        position: fixed !important;
+        top: 80px !important;
+        right: 20px !important;
+        background: ${bgColor} !important;
+        border: 1px solid ${borderColor} !important;
+        border-radius: 6px !important;
+        padding: 12px 16px !important;
+        color: ${textColor} !important;
+        font-family: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.FONT_FAMILY} !important;
+        font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.SMALL} !important;
+        font-weight: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.WEIGHTS.MEDIUM} !important;
+        box-shadow: ${SHAREPOINT_DESIGN_SYSTEM.SHADOWS.CARD} !important;
+        z-index: 2147483647 !important;
+        max-width: 400px !important;
+        word-wrap: break-word !important;
+        animation: shimaCopyMessageSlideIn 0.3s ease-out !important;
+        cursor: pointer !important;
+      `;
+
+      messageDiv.innerHTML = message;
+
+      // クリックで削除
+      messageDiv.addEventListener('click', () => {
+        messageDiv.remove();
+      });
+
+      // アニメーションCSSを追加（一度だけ）
+      if (!document.getElementById('shima-copy-animation-styles')) {
+        const style = document.createElement('style');
+        style.id = 'shima-copy-animation-styles';
+        style.textContent = `
+          @keyframes shimaCopyMessageSlideIn {
+            from {
+              transform: translateX(100%) !important;
+              opacity: 0 !important;
+            }
+            to {
+              transform: translateX(0) !important;
+              opacity: 1 !important;
+            }
+          }
+          @keyframes shimaCopyMessageSlideOut {
+            from {
+              transform: translateX(0) !important;
+              opacity: 1 !important;
+            }
+            to {
+              transform: translateX(100%) !important;
+              opacity: 0 !important;
+            }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+
+      document.body.appendChild(messageDiv);
+
+      // 指定時間後に削除
+      setTimeout(() => {
+        if (messageDiv.parentNode) {
+          messageDiv.style.animation = 'shimaCopyMessageSlideOut 0.3s ease-in';
+          setTimeout(() => {
+            if (messageDiv.parentNode) {
+              messageDiv.remove();
+            }
+          }, 300);
+        }
+      }, duration);
+    },
+
+    // ========== Navigator固有ユーティリティ関数 ==========
+
+    /**
      * 既存のパネルをクリーンアップ
      * @returns {boolean} クリーンアップが実行されたかどうか
      */
@@ -243,38 +408,37 @@ javascript: (function () {
 
       // URLからクエリパラメータとハッシュを除去してベースURLを取得
       const cleanUrl = currentUrl.split('?')[0].split('#')[0];
-      const sharepointMatch = cleanUrl.match(/^(https?:\/\/[^\/]+)\/sites\/([^\/]+)/);
+      const sharepointMatch = cleanUrl.match(/^(?<domain>https?:\/\/[^\/]+)\/sites\/(?<siteName>[^\/]+)/);
 
       if (!sharepointMatch) {
         return null;
       }
 
-      const domain = sharepointMatch[1];
-      const siteName = sharepointMatch[2];
-      let baseUrl = domain + '/sites/' + siteName;
-
-      // TopSite か ChildSite かを判別（クリーンなURLで判定）
-      const fullMatch = cleanUrl.match(/^(https?:\/\/[^\/]+)\/sites\/([^\/]+)\/([^\/]+)/);
+      const { domain, siteName } = sharepointMatch.groups;
+      let baseUrl = domain + '/sites/' + siteName;      // TopSite か ChildSite かを判別
+      const childSiteMatch = cleanUrl.match(/^(?<protocol>https?:\/\/[^\/]+)\/sites\/(?<siteName>[^\/]+)\/(?<thirdLevelPath>[^\/]+)/);
 
       // SharePointの特殊パス（システムディレクトリ）を定義
       const systemPaths = [
         'pages', 'lists', 'shared%20documents', 'shared documents', 'forms', 'sitepages',
-        'style%20library', 'style library', 'site%20assets', 'site assets', 'siteassets'
+        'style%20library', 'style library', 'site%20assets', 'site assets', 'siteassets',
       ];
 
-      // 「_」で始まる特殊パス（システムディレクトリ）をチェック
-      const pathToCheck = fullMatch[3];
-      const isSystemPath = fullMatch && pathToCheck && (
-        systemPaths.includes(pathToCheck.toLowerCase()) ||
-        systemPaths.includes(decodeURIComponent(pathToCheck).toLowerCase()) ||
-        pathToCheck.startsWith('_') // _layouts, _catalogs, _api, _vti_, etc.
+      const thirdLevelPath = childSiteMatch?.groups?.thirdLevelPath || '';
+
+      // システムパス（SharePointの特殊ディレクトリ）かどうかをチェック
+      const isSystemPath = thirdLevelPath && (
+        systemPaths.includes(thirdLevelPath.toLowerCase()) ||
+        systemPaths.includes(decodeURIComponent(thirdLevelPath).toLowerCase()) ||
+        thirdLevelPath.startsWith('_') // _layouts, _catalogs, _api, _vti_, etc.
       );
 
-      const isChildSite = fullMatch && fullMatch[3] && !isSystemPath;
+      // 実際の子サイトかどうかを判別（システムパスでない場合のみ）
+      const isChildSite = childSiteMatch && thirdLevelPath && !isSystemPath;
 
       let childSiteName = '';
       if (isChildSite) {
-        childSiteName = fullMatch[3];
+        childSiteName = thirdLevelPath;
         baseUrl = domain + '/sites/' + siteName + '/' + childSiteName;
       }
 

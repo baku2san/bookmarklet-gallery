@@ -13,6 +13,25 @@ javascript: (() => {
   'use strict';
 
   // =============================================================================
+  // コンソール警告抑制（オプション）
+  // =============================================================================
+  const SUPPRESS_MUTATION_WARNINGS = true; // 必要に応じてfalseに変更
+
+  if (SUPPRESS_MUTATION_WARNINGS) {
+    window.originalConsoleWarn = console.warn;
+    console.warn = function (...args) {
+      // DOMNodeRemoved関連の警告を抑制
+      if (args[0] && typeof args[0] === 'string' &&
+        (args[0].includes('DOMNodeRemoved') ||
+          args[0].includes('mutation event') ||
+          args[0].includes('Mutation Events'))) {
+        return;
+      }
+      window.originalConsoleWarn.apply(console, args);
+    };
+  }
+
+  // =============================================================================
   // デザインシステム定数
   // =============================================================================
   const SHAREPOINT_DESIGN_SYSTEM = {
@@ -120,17 +139,21 @@ javascript: (() => {
       HEADER_HEIGHT: '48px'
     }
   };
-
+  // =============================================================================
   // 定数定義
-  const CONFIG = {
+  // =============================================================================
+  const CONSTANTS = {
     PANEL_ID: 'shima-sharepoint-api-navigator',
     STORAGE_KEY: 'shima-api-last-results',
     MAX_DISPLAY_FIELDS: 10,
     MAX_CELL_LENGTH: 250
   };
-
+  // =============================================================================
   // ユーティリティ関数
+  // =============================================================================
   const Utils = {
+    // ========== 共通ユーティリティ関数 ==========
+
     // HTML エスケープ
     escapeHtml(text) {
       const div = document.createElement('div');
@@ -162,9 +185,10 @@ javascript: (() => {
         } catch (e) {
           return this.escapeHtml(String(value));
         }
-      }
-      return this.escapeHtml(String(value));
+      } return this.escapeHtml(String(value));
     },
+
+    // ========== API Navigator固有ユーティリティ関数 ==========
 
     // 重要なフィールドを取得
     getImportantFields(item, endpointId) {
@@ -192,7 +216,7 @@ javascript: (() => {
       // 残りの重要そうなフィールドを追加
       const commonImportant = ['Title', 'Name', 'DisplayName', 'Url', 'Email', 'Description'];
       allFields.forEach(field => {
-        if (result.length >= CONFIG.MAX_DISPLAY_FIELDS) return;
+        if (result.length >= CONSTANTS.MAX_DISPLAY_FIELDS) return;
         if (!result.includes(field) &&
           (commonImportant.includes(field) ||
             (!field.startsWith('__') && typeof item[field] !== 'object'))) {
@@ -200,7 +224,7 @@ javascript: (() => {
         }
       });
 
-      return result.slice(0, CONFIG.MAX_DISPLAY_FIELDS);
+      return result.slice(0, CONSTANTS.MAX_DISPLAY_FIELDS);
     },
 
     // ローカルストレージへの保存
@@ -425,7 +449,7 @@ javascript: (() => {
     // メインパネル作成
     createPanel() {
       this.panel = document.createElement('div');
-      this.panel.id = CONFIG.PANEL_ID;
+      this.panel.id = CONSTANTS.PANEL_ID;
       this.panel.style.cssText = this.getPanelStyles();
 
       // ドラッグ機能を追加
@@ -706,17 +730,20 @@ javascript: (() => {
         </div>
       `;
     }
+
     // 結果エリアHTML生成
     generateResultsAreaHTML() {
       return `
-        <div id="shima-results-area" style="flex: 1 !important; display: flex !important; flex-direction: column !important;
-             min-height: 0 !important; padding: 12px !important; padding-top: 0 !important;">
+        <div id="shima-results-area" style="flex: 1 !important; padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important; 
+             overflow: auto !important; min-height: 0 !important; display: flex !important; flex-direction: column !important;">
           <div style="text-align: center !important; color: #666 !important; padding: 40px !important;">
-            📡 左側からAPIエンドポイントを選択すると自動的にAPIが実行されます。
+            📡 左側からAPIエンドポイントを選択し、「実行」ボタンでAPIを呼び出してください。
           </div>
         </div>
       `;
-    }    // テーブル作成
+    }
+
+    // テーブル作成
     createTable(data, endpoint) {
       if (!data || data.length === 0) {
         return '<div>データがありません</div>';
@@ -821,7 +848,7 @@ javascript: (() => {
           // データ列のインデックスは選択列分を考慮して +1
           tableHtml += `<td data-column="${columnIndex + 1}" data-field="${field}" data-value="${Utils.escapeHtml(String(value))}" 
                         style="border: 1px solid #ddd !important; padding: 8px !important;
-                        max-width: ${CONFIG.MAX_CELL_LENGTH}px !important; overflow: hidden !important;
+                        max-width: ${CONSTANTS.MAX_CELL_LENGTH}px !important; overflow: hidden !important;
                         text-overflow: ellipsis !important; white-space: nowrap !important; ${cellWidth}
                         cursor: pointer !important;"
                         title="クリック: セル値をコピー / 値: ${Utils.escapeHtml(String(value))}"                        onclick="(function(cell) {
@@ -1048,7 +1075,7 @@ javascript: (() => {
     // 結果保存
     saveResults(data) {
       const results = data.d ? (data.d.results || [data.d]) : [data];
-      Utils.saveToStorage(CONFIG.STORAGE_KEY, results);
+      Utils.saveToStorage(CONSTANTS.STORAGE_KEY, results);
     }    // リスト選択機能設定（ラジオボタン方式）
     setupListSelection(resultsArea, results) {
       // ラジオボタン形式の選択機能は、既にテーブル生成時にonclick属性で実装済み
@@ -1618,7 +1645,7 @@ javascript: (() => {
 
     // リサイズ処理
     setupResize() {
-      const panel = document.getElementById(CONFIG.PANEL_ID);
+      const panel = document.getElementById(CONSTANTS.PANEL_ID);
       if (!panel) return;
 
       // ウィンドウリサイズ時の処理
@@ -1694,44 +1721,77 @@ javascript: (() => {
 
     // 既存パネルのチェック
     checkExistingPanel() {
-      const existingPanel = document.getElementById(CONFIG.PANEL_ID);
+      const existingPanel = document.getElementById(CONSTANTS.PANEL_ID);
       if (existingPanel) {
         existingPanel.remove();
         return true;
       }
       return false;
-    }
-
-    // SharePoint サイトの検証
+    }    // SharePoint サイトの検証
     validateSharePointSite() {
-      const currentUrl = window.location.href;
-      const sharepointMatch = currentUrl.match(/^(https?:\/\/[^\/]+)\/sites\/([^\/]+)/);
+      try {
+        const currentUrl = window.location.href;
 
-      if (!sharepointMatch) {
-        alert('このブックマークレットはSharePointサイトでのみ動作します。');
+        // URLからクエリパラメータとハッシュを除去してベースURLを取得
+        const cleanUrl = currentUrl.split('?')[0].split('#')[0];
+        const sharepointMatch = cleanUrl.match(/^(?<domain>https?:\/\/[^\/]+)\/sites\/(?<siteName>[^\/]+)/);
+
+        if (!sharepointMatch) {
+          alert('このブックマークレットはSharePointサイトでのみ動作します。');
+          return false;
+        }
+
+        this.sharepointMatch = sharepointMatch;
+        return true;
+      } catch (error) {
+        console.error('SharePoint サイト検証エラー:', error);
+        alert('サイト情報の取得に失敗しました: ' + error.message);
         return false;
       }
-
-      this.sharepointMatch = sharepointMatch;
-      return true;
-    }
-
-    // URL設定
+    }// URL設定
     setupUrls() {
-      const [, domain, siteName] = this.sharepointMatch;
-      const currentUrl = window.location.href;
+      try {
+        if (!this.sharepointMatch || !this.sharepointMatch.groups) {
+          throw new Error('SharePoint サイト情報が正しく取得できませんでした');
+        }
 
-      // Child Site の判別
-      const fullMatch = currentUrl.match(/^(https?:\/\/[^\/]+)\/sites\/([^\/]+)\/([^\/]+)/);
-      const isChildSite = fullMatch && fullMatch[3] &&
-        !['pages', 'Lists', 'Shared%20Documents'].includes(fullMatch[3]) &&
-        !fullMatch[3].startsWith('_layouts');
+        const { domain, siteName } = this.sharepointMatch.groups;
+        const currentUrl = window.location.href;
 
-      this.baseUrl = isChildSite
-        ? `${domain}/sites/${siteName}/${fullMatch[3]}`
-        : `${domain}/sites/${siteName}`;
+        // URLからクエリパラメータとハッシュを除去してベースURLを取得
+        const cleanUrl = currentUrl.split('?')[0].split('#')[0];
 
-      this.apiBaseUrl = `${this.baseUrl}/_api`;
+        // TopSite か ChildSite かを判別
+        const childSiteMatch = cleanUrl.match(/^(?<protocol>https?:\/\/[^\/]+)\/sites\/(?<siteName>[^\/]+)\/(?<thirdLevelPath>[^\/]+)/);
+
+        // SharePointの特殊パス（システムディレクトリ）を定義
+        const systemPaths = [
+          'pages', 'lists', 'shared%20documents', 'shared documents', 'forms', 'sitepages',
+          'style%20library', 'style library', 'site%20assets', 'site assets', 'siteassets'
+        ];
+
+        const thirdLevelPath = childSiteMatch?.groups?.thirdLevelPath || '';
+
+        // システムパス（SharePointの特殊ディレクトリ）かどうかをチェック
+        const isSystemPath = thirdLevelPath && (
+          systemPaths.includes(thirdLevelPath.toLowerCase()) ||
+          systemPaths.includes(decodeURIComponent(thirdLevelPath).toLowerCase()) ||
+          thirdLevelPath.startsWith('_') // _layouts, _catalogs, _api, _vti_, etc.
+        );
+
+        // 実際の子サイトかどうかを判別（システムパスでない場合のみ）
+        const isChildSite = childSiteMatch && thirdLevelPath && !isSystemPath;
+
+        // ベースURLを構築
+        this.baseUrl = isChildSite
+          ? `${domain}/sites/${siteName}/${thirdLevelPath}`
+          : `${domain}/sites/${siteName}`;
+
+        this.apiBaseUrl = `${this.baseUrl}/_api`;
+      } catch (error) {
+        console.error('URL設定エラー:', error);
+        throw error;
+      }
     }
 
     // アプリケーション作成
@@ -1766,34 +1826,34 @@ javascript: (() => {
     addCommonStyles() {
       const style = document.createElement('style');
       style.textContent = `
-        #${CONFIG.PANEL_ID} .shima-api-endpoint:hover {
+        #${CONSTANTS.PANEL_ID} .shima-api-endpoint:hover {
           background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BACKGROUND.TERTIARY} !important;
           border-color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.PRIMARY} !important;
         }
 
-        #${CONFIG.PANEL_ID} button:hover:not(:disabled) {
+        #${CONSTANTS.PANEL_ID} button:hover:not(:disabled) {
           opacity: 0.9 !important;
           transform: translateY(-1px) !important;
         }
 
-        #${CONFIG.PANEL_ID} button:active:not(:disabled) {
+        #${CONSTANTS.PANEL_ID} button:active:not(:disabled) {
           transform: translateY(0) !important;
         }
 
-        #${CONFIG.PANEL_ID} *::-webkit-scrollbar {
+        #${CONSTANTS.PANEL_ID} *::-webkit-scrollbar {
           width: 8px !important;
         }
 
-        #${CONFIG.PANEL_ID} *::-webkit-scrollbar-track {
+        #${CONSTANTS.PANEL_ID} *::-webkit-scrollbar-track {
           background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BACKGROUND.TERTIARY} !important;
         }
 
-        #${CONFIG.PANEL_ID} *::-webkit-scrollbar-thumb {
+        #${CONSTANTS.PANEL_ID} *::-webkit-scrollbar-thumb {
           background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BORDER.DEFAULT} !important;
           border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important;
         }
 
-        #${CONFIG.PANEL_ID} *::-webkit-scrollbar-thumb:hover {
+        #${CONSTANTS.PANEL_ID} *::-webkit-scrollbar-thumb:hover {
           background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.MUTED} !important;
         }
       `;
