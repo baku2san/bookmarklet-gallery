@@ -24,7 +24,8 @@ concurrency:
   group: "pages"
   cancel-in-progress: false
 
-jobs:  # ビルドジョブ
+jobs:
+  # ビルドジョブ
   build:
     runs-on: ubuntu-latest
     steps:
@@ -53,6 +54,14 @@ jobs:  # ビルドジョブ
         
         # ビルドされたdist/install.htmlをindex.htmlとしてコピー
         cp ./bookmarklets/dist/install.html ./dist/index.html
+        
+        # 開発者向けページ（dev.html）もコピー
+        if [ -f "./bookmarklets/dist/dev.html" ]; then
+          cp ./bookmarklets/dist/dev.html ./dist/dev.html
+          echo "📄 開発者向けページ（dev.html）をコピーしました"
+        else
+          echo "⚠️ dev.html が見つかりません"
+        fi
         
         # テストページが存在する場合のみコピー（設定でincludeInBuild: trueの場合）
         if [ -d "./bookmarklets/dist/test-pages" ]; then
