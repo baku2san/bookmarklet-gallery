@@ -5,18 +5,27 @@
     "ms-vscode.vscode-json",
     "ms-vscode.vscode-eslint",
     "ms-vscode.powershell",
-    
+
     // Microsoft 1st Party - リモート開発・コンテナ
     "ms-vscode-remote.remote-containers",
-    
+
     // Microsoft 1st Party - npm スクリプト管理
     "ms-vscode.vscode-npm-script",
-    
+
     // GitHub (Microsoft) - Git統合・テーマ
     "github.vscode-github-actions",
     "github.github-vscode-theme",
-    
+
     // 高信頼度サードパーティ - コードフォーマット
-    "esbenp.prettier-vscode"
+    "esbenp.prettier-vscode",
+    "redhat.vscode-yaml",
+    "redhat.vscode-xml",
+
+    // 高信頼度サードパーティ - 開発支援
+    "bradlc.vscode-tailwindcss",
+    "ms-vscode.live-server",
+    "formulahendry.auto-rename-tag",
+    "christian-kohler.path-intellisense",
+    "streetsidesoftware.code-spell-checker"
   ]
 }

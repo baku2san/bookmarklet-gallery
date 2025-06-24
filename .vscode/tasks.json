@@ -282,6 +282,82 @@
         "panel": "shared"
       },
       "problemMatcher": []
+    },
+    {
+      "label": "🎨 コードフォーマット",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "code:format"],
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}/bookmarklets"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "🔍 フォーマットチェック",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "code:check"],
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}/bookmarklets"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "🧹 Prettier フォーマット",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "format"],
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}/bookmarklets"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "🔧 ESLint 修正",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "lint"],
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}/bookmarklets"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
     }
   ]
 }

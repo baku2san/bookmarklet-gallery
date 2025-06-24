@@ -6,7 +6,7 @@
   },
   {
     "key": "ctrl+shift+w",
-    "command": "workbench.action.tasks.runTask", 
+    "command": "workbench.action.tasks.runTask",
     "args": "👀 開発モード（ウォッチ）"
   },
   {
@@ -18,5 +18,20 @@
     "key": "ctrl+shift+c",
     "command": "workbench.action.tasks.runTask",
     "args": "🧹 ビルドファイルをクリーン"
+  },
+  {
+    "key": "ctrl+shift+f",
+    "command": "workbench.action.tasks.runTask",
+    "args": "🎨 コードフォーマット"
+  },
+  {
+    "key": "ctrl+shift+l",
+    "command": "workbench.action.tasks.runTask",
+    "args": "🔧 ESLint 修正"
+  },
+  {
+    "key": "alt+shift+f",
+    "command": "editor.action.formatDocument",
+    "when": "editorHasDocumentFormattingProvider && editorTextFocus && !editorReadonly"
   }
 ]
