@@ -24,172 +24,172 @@
 
 # ギャラリー設定
 gallery:
-  title: "🔖 Shima Bookmarklets"
-  description: "生産性向上と開発支援のためのブックマークレット集"
-  version: "1.0.0"
+  title: '🔖 Shima Bookmarklets'
+  description: '生産性向上と開発支援のためのブックマークレット集'
+  version: '1.0.0'
 
 # カテゴリ設定
 # ブックマークレットを分類するカテゴリを定義します
 # 新しいカテゴリを追加する場合は、ここに設定を追加してください
 categories:
   utility:
-    name: "🛠️ Utility Tools"
-    description: "URL操作、言語切り替え、ファイルダウンロードなどの便利ツール"
+    name: '🛠️ Utility Tools'
+    description: 'URL操作、言語切り替え、ファイルダウンロードなどの便利ツール'
     order: 1
 
   productivity:
-    name: "🎯 Productivity Tools"
-    description: "日常業務の効率化ツール"
+    name: '🎯 Productivity Tools'
+    description: '日常業務の効率化ツール'
     order: 2
 
   development:
-    name: "� Development Tools"
-    description: "開発・デバッグ支援ツール"
+    name: '� Development Tools'
+    description: '開発・デバッグ支援ツール'
     order: 3
 
 # ブックマークレット定義
 # 公開するブックマークレットをここに定義します
 # enabled: false にすることで一時的に非公開にできます
 bookmarklets: # Utility Tools
-  - id: "utility-tools"
-    file: "utility-tools.js"
-    category: "utility"
-    title: "🛠️ Utility Tools"
-    icon: "🔧"
-    description: "URL操作、言語切り替え、Officeダウンロードなどの便利機能を統合したマルチツール"
+  - id: 'utility-tools'
+    file: 'utility-tools.js'
+    category: 'utility'
+    title: '🛠️ Utility Tools'
+    icon: '🔧'
+    description: 'URL操作、言語切り替え、Officeダウンロードなどの便利機能を統合したマルチツール'
     features:
-      - "URL エンコード・デコード（クリップボード対応）"
-      - "多言語URL切り替え (en/ja, en-us/ja-jp)"
-      - "Office 365 文書の直接ダウンロード"
-      - "HTTP→HTTPS変換"
-      - "クエリパラメータ削除"
-      - "ページ情報の詳細取得"
-      - "直感的なパネルUI"
+      - 'URL エンコード・デコード（クリップボード対応）'
+      - '多言語URL切り替え (en/ja, en-us/ja-jp)'
+      - 'Office 365 文書の直接ダウンロード'
+      - 'HTTP→HTTPS変換'
+      - 'クエリパラメータ削除'
+      - 'ページ情報の詳細取得'
+      - '直感的なパネルUI'
     enabled: true
 
   # Productivity Tools
-  - id: "hello-world"
-    file: "hello-world.js"
-    category: "productivity"
-    title: "Hello World"
-    icon: "👋"
-    description: "設定ファイル対応テスト用ブックマークレット"
+  - id: 'hello-world'
+    file: 'hello-world.js'
+    category: 'productivity'
+    title: 'Hello World'
+    icon: '👋'
+    description: '設定ファイル対応テスト用ブックマークレット'
     features:
-      - "基本動作確認"
-      - "ページ情報表示"
-      - "実行時刻表示"
+      - '基本動作確認'
+      - 'ページ情報表示'
+      - '実行時刻表示'
     enabled: false
 
-  - id: "debug-test"
-    file: "debug-test.js"
-    category: "productivity"
-    title: "Debug Test"
-    icon: "🐛"
-    description: "ブックマークレットのデバッグ・診断ツール"
+  - id: 'debug-test'
+    file: 'debug-test.js'
+    category: 'productivity'
+    title: 'Debug Test'
+    icon: '🐛'
+    description: 'ブックマークレットのデバッグ・診断ツール'
     features:
-      - "実行確認"
-      - "エラー診断"
-      - "環境確認"
+      - '実行確認'
+      - 'エラー診断'
+      - '環境確認'
     enabled: false
 
-  - id: "simple-test"
-    file: "simple-test.js"
-    category: "productivity"
-    title: "Simple Test"
-    icon: "🧪"
-    description: "シンプルなテスト用ブックマークレット"
+  - id: 'simple-test'
+    file: 'simple-test.js'
+    category: 'productivity'
+    title: 'Simple Test'
+    icon: '🧪'
+    description: 'シンプルなテスト用ブックマークレット'
     features:
-      - "動作確認"
-      - "パネル表示テスト"
-      - "スタイリングテスト"
+      - '動作確認'
+      - 'パネル表示テスト'
+      - 'スタイリングテスト'
     enabled: false
 
-  - id: "page-analyzer"
-    file: "page-analyzer.js"
-    category: "productivity"
-    title: "Page Analyzer"
-    icon: "📊"
-    description: "ページ構造・メタデータ分析ツール"
+  - id: 'page-analyzer'
+    file: 'page-analyzer.js'
+    category: 'productivity'
+    title: 'Page Analyzer'
+    icon: '📊'
+    description: 'ページ構造・メタデータ分析ツール'
     features:
-      - "ページ情報表示"
-      - "SEO分析"
-      - "パフォーマンス確認"
+      - 'ページ情報表示'
+      - 'SEO分析'
+      - 'パフォーマンス確認'
     enabled: false
 
-  - id: "sharepoint-navigator"
-    file: "sharepoint-navigator.js"
-    category: "productivity"
-    title: "SharePoint Navigator"
-    icon: "🧭"
-    description: "SharePoint サイト内ナビゲーションツール"
+  - id: 'sharepoint-navigator'
+    file: 'sharepoint-navigator.js'
+    category: 'productivity'
+    title: 'SharePoint Navigator'
+    icon: '🧭'
+    description: 'SharePoint サイト内ナビゲーションツール'
     features:
-      - "サイト構造表示"
-      - "リスト・ライブラリ一覧"
-      - "クイックアクセス"
+      - 'サイト構造表示'
+      - 'リスト・ライブラリ一覧'
+      - 'クイックアクセス'
     enabled: true
 
   # Development Tools
-  - id: "css-inspector"
-    file: "css-inspector.js"
-    category: "development"
-    title: "CSS Inspector"
-    icon: "🎨"
-    description: "CSS 開発・デバッグツール"
+  - id: 'css-inspector'
+    file: 'css-inspector.js'
+    category: 'development'
+    title: 'CSS Inspector'
+    icon: '🎨'
+    description: 'CSS 開発・デバッグツール'
     features:
-      - "要素スタイル表示"
-      - "CSS編集"
-      - "レスポンシブ確認"
+      - '要素スタイル表示'
+      - 'CSS編集'
+      - 'レスポンシブ確認'
     enabled: false
 
-  - id: "api-tester"
-    file: "api-tester.js"
-    category: "development"
-    title: "API Tester"
-    icon: "🔌"
-    description: "API エンドポイントのテスト"
+  - id: 'api-tester'
+    file: 'api-tester.js'
+    category: 'development'
+    title: 'API Tester'
+    icon: '🔌'
+    description: 'API エンドポイントのテスト'
     features:
-      - "HTTPリクエスト送信"
-      - "レスポンス表示"
-      - "API開発支援"
+      - 'HTTPリクエスト送信'
+      - 'レスポンス表示'
+      - 'API開発支援'
     enabled: false
-  - id: "sharepoint-api-navigator"
-    file: "sharepoint-api-navigator.js"
-    category: "development"
-    title: "SharePoint API Navigator"
-    icon: "🔗"
-    description: "SharePoint REST API の探索・テストツール"
+  - id: 'sharepoint-api-navigator'
+    file: 'sharepoint-api-navigator.js'
+    category: 'development'
+    title: 'SharePoint API Navigator'
+    icon: '🔗'
+    description: 'SharePoint REST API の探索・テストツール'
     features:
-      - "APIエンドポイント選択"
-      - "レスポンス表示（JSON/テーブル）"
-      - "フィルタリング・ソート"
-      - "Lists API詳細表示"
+      - 'APIエンドポイント選択'
+      - 'レスポンス表示（JSON/テーブル）'
+      - 'フィルタリング・ソート'
+      - 'Lists API詳細表示'
     enabled: true
 
-  - id: "edge-explorer"
-    file: "edge-explorer.js"
-    category: "development"
-    title: "Edge Explorer"
-    icon: "🔍"
-    description: "Microsoft Edge ブラウザの機能探索・検証ツール"
+  - id: 'edge-explorer'
+    file: 'edge-explorer.js'
+    category: 'development'
+    title: 'Edge Explorer'
+    icon: '🔍'
+    description: 'Microsoft Edge ブラウザの機能探索・検証ツール'
     features:
-      - "Edge ブラウザ検出と詳細情報取得"
-      - "利用可能な Web API の包括的調査"
-      - "パフォーマンス・メモリ使用量監視"
-      - "拡張機能API の検出と分析"
-      - "ブックマークレット制約の可視化"
-      - "非同期API（Battery, Storage等）の状態確認"
+      - 'Edge ブラウザ検出と詳細情報取得'
+      - '利用可能な Web API の包括的調査'
+      - 'パフォーマンス・メモリ使用量監視'
+      - '拡張機能API の検出と分析'
+      - 'ブックマークレット制約の可視化'
+      - '非同期API（Battery, Storage等）の状態確認'
     enabled: false
 
-  - id: "experimental-tool"
-    file: "debug-test.js" # 既存ファイルを使用
-    category: "development"
-    title: "🧪 Experimental Tool"
-    icon: "⚗️"
-    description: "実験的機能のテストブックマークレット（開発中）"
+  - id: 'experimental-tool'
+    file: 'debug-test.js' # 既存ファイルを使用
+    category: 'development'
+    title: '🧪 Experimental Tool'
+    icon: '⚗️'
+    description: '実験的機能のテストブックマークレット（開発中）'
     features:
-      - "新機能のテスト"
-      - "実験的API使用"
-      - "パフォーマンス検証"
+      - '新機能のテスト'
+      - '実験的API使用'
+      - 'パフォーマンス検証'
     enabled: false # 無効化
 
 # ビルド設定
@@ -201,12 +201,12 @@ build:
     true
     # ファイル検索ディレクトリ（JSファイルの検索パス）
   searchDirs:
-    - "./src/utility" # ユーティリティツール格納ディレクトリ
-    - "./src/productivity" # 生産性ツール格納ディレクトリ
-    - "./src/development" # 開発ツール格納ディレクトリ
+    - './src/utility' # ユーティリティツール格納ディレクトリ
+    - './src/productivity' # 生産性ツール格納ディレクトリ
+    - './src/development' # 開発ツール格納ディレクトリ
 
   # 出力ファイル（生成されるギャラリーHTMLファイル）
-  outputFile: "./dist/install.html"
+  outputFile: './dist/install.html'
 
   # minify設定（JavaScriptコードの圧縮）
   minify:
@@ -221,7 +221,7 @@ build:
     generate: true
 
     # 裏ページのファイル名
-    filename: "dev.html"
+    filename: 'dev.html'
 
     # メインページから裏ページへのリンクを表示するか
     showLinkFromMain: true
@@ -231,6 +231,6 @@ build:
       # 表示するか（false の場合は完全に非表示）
       show: true
       # 表示時のスタイル（grayed-out, warning-banner, separate-section）
-      style: "warning-banner"
+      style: 'warning-banner'
       # 警告メッセージ
-      warningText: "⚠️ 開発中・テスト中のブックマークレットです"
+      warningText: '⚠️ 開発中・テスト中のブックマークレットです'

@@ -42,7 +42,8 @@ javascript: (function () {
       url: window.location.href,
       domain: window.location.hostname,
       protocol: window.location.protocol,
-      wordCount: (document.body.innerText || '').split(/\s+/).filter(word => word.length > 0).length,
+      wordCount: (document.body.innerText || '').split(/\s+/).filter(word => word.length > 0)
+        .length,
       charCount: (document.body.innerText || '').length,
       images: document.images.length,
       links: document.links.length,
@@ -55,15 +56,15 @@ javascript: (function () {
         h3: document.querySelectorAll('h3').length,
         h4: document.querySelectorAll('h4').length,
         h5: document.querySelectorAll('h5').length,
-        h6: document.querySelectorAll('h6').length
+        h6: document.querySelectorAll('h6').length,
       },
       viewport: {
         width: window.innerWidth,
-        height: window.innerHeight
+        height: window.innerHeight,
       },
       doctype: document.doctype ? document.doctype.name : 'No DOCTYPE',
       language: document.documentElement.lang || 'Not specified',
-      charset: document.characterSet || 'Not specified'
+      charset: document.characterSet || 'Not specified',
     };
 
     // SEO Analysis
@@ -79,7 +80,7 @@ javascript: (function () {
       canonical: canonicalLink ? canonicalLink.href : 'Missing',
       titleLength: analysis.title.length,
       hasOpenGraph: !!document.querySelector('meta[property^="og:"]'),
-      hasTwitterCard: !!document.querySelector('meta[name^="twitter:"]')
+      hasTwitterCard: !!document.querySelector('meta[name^="twitter:"]'),
     };
 
     return analysis;
@@ -205,11 +206,14 @@ TECHNICAL INFO
   // Copy to clipboard
   function copyToClipboard(text) {
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(() => {
-        alert('Report copied to clipboard!');
-      }).catch(() => {
-        fallbackCopy(text);
-      });
+      navigator.clipboard
+        .writeText(text)
+        .then(() => {
+          alert('Report copied to clipboard!');
+        })
+        .catch(() => {
+          fallbackCopy(text);
+        });
     } else {
       fallbackCopy(text);
     }
@@ -273,7 +277,6 @@ TECHNICAL INFO
 
     // Add to page
     document.body.appendChild(panel);
-
   } catch (error) {
     console.error('Page Analyzer Error:', error);
     alert('Error analyzing page: ' + error.message);

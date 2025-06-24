@@ -21,10 +21,13 @@ javascript: (() => {
     window.originalConsoleWarn = console.warn;
     console.warn = function (...args) {
       // DOMNodeRemoved関連の警告を抑制
-      if (args[0] && typeof args[0] === 'string' &&
+      if (
+        args[0] &&
+        typeof args[0] === 'string' &&
         (args[0].includes('DOMNodeRemoved') ||
           args[0].includes('mutation event') ||
-          args[0].includes('Mutation Events'))) {
+          args[0].includes('Mutation Events'))
+      ) {
         return;
       }
       window.originalConsoleWarn.apply(console, args);
@@ -37,35 +40,35 @@ javascript: (() => {
   const SHAREPOINT_DESIGN_SYSTEM = {
     // カラーパレット（Microsoft Fluent Design準拠）
     COLORS: {
-      PRIMARY: '#0078d4',           // SharePoint Blue
-      PRIMARY_HOVER: '#106ebe',     // Darker blue for hover
-      SECONDARY: '#605e5c',         // Text secondary
-      SUCCESS: '#107c10',           // Green
-      WARNING: '#ff8c00',          // Orange
-      DANGER: '#d13438',           // Red
+      PRIMARY: '#0078d4', // SharePoint Blue
+      PRIMARY_HOVER: '#106ebe', // Darker blue for hover
+      SECONDARY: '#605e5c', // Text secondary
+      SUCCESS: '#107c10', // Green
+      WARNING: '#ff8c00', // Orange
+      DANGER: '#d13438', // Red
 
       // 背景色
       BACKGROUND: {
-        PRIMARY: '#ffffff',         // White
-        SECONDARY: '#f8f9fa',       // Light gray
-        TERTIARY: '#f3f2f1',        // Lighter gray
-        PANEL: '#faf9f8'           // Panel background
+        PRIMARY: '#ffffff', // White
+        SECONDARY: '#f8f9fa', // Light gray
+        TERTIARY: '#f3f2f1', // Lighter gray
+        PANEL: '#faf9f8', // Panel background
       },
 
       // テキスト色
       TEXT: {
-        PRIMARY: '#323130',         // Dark text
-        SECONDARY: '#605e5c',       // Secondary text
-        MUTED: '#8a8886',          // Muted text
-        INVERSE: '#ffffff'          // White text
+        PRIMARY: '#323130', // Dark text
+        SECONDARY: '#605e5c', // Secondary text
+        MUTED: '#8a8886', // Muted text
+        INVERSE: '#ffffff', // White text
       },
 
       // ボーダー色
       BORDER: {
-        DEFAULT: '#edebe9',         // Default border
-        FOCUS: '#0078d4',          // Focus border
-        SEPARATOR: '#e1dfdd'        // Separator
-      }
+        DEFAULT: '#edebe9', // Default border
+        FOCUS: '#0078d4', // Focus border
+        SEPARATOR: '#e1dfdd', // Separator
+      },
     },
 
     // タイポグラフィ
@@ -79,21 +82,21 @@ javascript: (() => {
         H4: '14px',
         BODY: '14px',
         CAPTION: '12px',
-        SMALL: '11px'
+        SMALL: '11px',
       },
 
       WEIGHTS: {
         NORMAL: '400',
         MEDIUM: '500',
         SEMIBOLD: '600',
-        BOLD: '700'
+        BOLD: '700',
       },
 
       LINE_HEIGHTS: {
         TIGHT: '1.2',
         NORMAL: '1.4',
-        RELAXED: '1.6'
-      }
+        RELAXED: '1.6',
+      },
     },
 
     // スペーシング
@@ -104,7 +107,7 @@ javascript: (() => {
       LG: '16px',
       XL: '20px',
       XXL: '24px',
-      XXXL: '32px'
+      XXXL: '32px',
     },
 
     // ボーダー半径
@@ -113,7 +116,7 @@ javascript: (() => {
       MD: '4px',
       LG: '6px',
       XL: '8px',
-      ROUND: '50%'
+      ROUND: '50%',
     },
 
     // シャドウ
@@ -121,14 +124,14 @@ javascript: (() => {
       CARD: '0 1px 3px rgba(0, 0, 0, 0.1)',
       PANEL: '0 4px 8px rgba(0, 0, 0, 0.1)',
       MODAL: '0 8px 16px rgba(0, 0, 0, 0.15)',
-      FOCUS: '0 0 0 2px rgba(0, 120, 212, 0.3)'
+      FOCUS: '0 0 0 2px rgba(0, 120, 212, 0.3)',
     },
 
     // アニメーション
     TRANSITIONS: {
       FAST: '0.15s ease',
       NORMAL: '0.2s ease',
-      SLOW: '0.3s ease'
+      SLOW: '0.3s ease',
     },
 
     // レイアウト
@@ -136,8 +139,8 @@ javascript: (() => {
       PANEL_MAX_WIDTH: '800px',
       PANEL_MIN_WIDTH: '320px',
       SIDEBAR_WIDTH: '250px',
-      HEADER_HEIGHT: '48px'
-    }
+      HEADER_HEIGHT: '48px',
+    },
   };
   // =============================================================================
   // 定数定義
@@ -146,7 +149,7 @@ javascript: (() => {
     PANEL_ID: 'shima-sharepoint-api-navigator',
     STORAGE_KEY: 'shima-api-last-results',
     MAX_DISPLAY_FIELDS: 10,
-    MAX_CELL_LENGTH: 250
+    MAX_CELL_LENGTH: 250,
   };
   // =============================================================================
   // ユーティリティ関数
@@ -178,7 +181,8 @@ javascript: (() => {
       }
       if (typeof value === 'object') {
         return '<em style="color: #666 !important;">[Object]</em>';
-      } if (field.toLowerCase().includes('date') && value) {
+      }
+      if (field.toLowerCase().includes('date') && value) {
         try {
           return new Date(value).toLocaleString('ja-JP');
         } catch (e) {
@@ -198,14 +202,22 @@ javascript: (() => {
       const isFieldData = allFields.includes('InternalName') && allFields.includes('TypeAsString');
 
       const fieldPriority = {
-        'lists': ['Title', 'BaseTemplate', 'ItemCount', 'Id', 'Created', 'LastItemModifiedDate'],
-        'users': ['Title', 'LoginName', 'Email', 'IsSiteAdmin', 'Id'],
-        'groups': ['Title', 'Description', 'Owner', 'Users', 'Id'],
-        'web': ['Title', 'Url', 'Created', 'Language', 'WebTemplate', 'Id'],
-        'webs': ['Title', 'Url', 'Created', 'WebTemplate', 'Id'],
-        'contentTypes': ['Name', 'Id', 'Group', 'Hidden'],
-        'features': ['DisplayName', 'DefinitionId', 'Id'],
-        'list-fields': ['InternalName', 'Title', 'TypeAsString', 'Id', 'Required', 'Hidden', 'ReadOnlyField']
+        lists: ['Title', 'BaseTemplate', 'ItemCount', 'Id', 'Created', 'LastItemModifiedDate'],
+        users: ['Title', 'LoginName', 'Email', 'IsSiteAdmin', 'Id'],
+        groups: ['Title', 'Description', 'Owner', 'Users', 'Id'],
+        web: ['Title', 'Url', 'Created', 'Language', 'WebTemplate', 'Id'],
+        webs: ['Title', 'Url', 'Created', 'WebTemplate', 'Id'],
+        contentTypes: ['Name', 'Id', 'Group', 'Hidden'],
+        features: ['DisplayName', 'DefinitionId', 'Id'],
+        'list-fields': [
+          'InternalName',
+          'Title',
+          'TypeAsString',
+          'Id',
+          'Required',
+          'Hidden',
+          'ReadOnlyField',
+        ],
       };
 
       // フィールドデータの場合は自動的にlist-fieldsの優先度を使用
@@ -227,9 +239,11 @@ javascript: (() => {
       const commonImportant = ['Title', 'Name', 'DisplayName', 'Url', 'Email', 'Description'];
       allFields.forEach(field => {
         if (result.length >= CONSTANTS.MAX_DISPLAY_FIELDS) return;
-        if (!result.includes(field) &&
+        if (
+          !result.includes(field) &&
           (commonImportant.includes(field) ||
-            (!field.startsWith('__') && typeof item[field] !== 'object'))) {
+            (!field.startsWith('__') && typeof item[field] !== 'object'))
+        ) {
           result.push(field);
         }
       });
@@ -267,7 +281,8 @@ javascript: (() => {
 
       const str = String(value);
       // JavaScriptの文字列リテラル用のエスケープ
-      return str.replace(/\\/g, '\\\\')
+      return str
+        .replace(/\\/g, '\\\\')
         .replace(/'/g, "\\'")
         .replace(/"/g, '\\"')
         .replace(/\n/g, '\\n')
@@ -375,50 +390,50 @@ javascript: (() => {
           id: 'web',
           title: 'Web Site',
           url: `${this.apiBaseUrl}/web`,
-          description: 'サイトの基本情報'
+          description: 'サイトの基本情報',
         },
         {
           id: 'lists',
           title: 'Lists',
           url: `${this.apiBaseUrl}/web/lists`,
-          description: 'サイト内のリスト一覧'
+          description: 'サイト内のリスト一覧',
         },
         {
           id: 'webs',
           title: 'Sub Sites',
           url: `${this.apiBaseUrl}/web/webs`,
-          description: 'サブサイト一覧'
+          description: 'サブサイト一覧',
         },
         {
           id: 'users',
           title: 'Site Users',
           url: `${this.apiBaseUrl}/web/siteusers`,
-          description: 'サイトユーザー一覧'
+          description: 'サイトユーザー一覧',
         },
         {
           id: 'groups',
           title: 'Site Groups',
           url: `${this.apiBaseUrl}/web/sitegroups`,
-          description: 'サイトグループ一覧'
+          description: 'サイトグループ一覧',
         },
         {
           id: 'roleassignments',
           title: 'Role Assignments',
           url: `${this.apiBaseUrl}/web/roleassignments`,
-          description: '権限割り当て一覧'
+          description: '権限割り当て一覧',
         },
         {
           id: 'contentTypes',
           title: 'Content Types',
           url: `${this.apiBaseUrl}/web/contenttypes`,
-          description: 'コンテンツタイプ一覧'
+          description: 'コンテンツタイプ一覧',
         },
         {
           id: 'features',
           title: 'Site Features',
           url: `${this.apiBaseUrl}/web/features`,
-          description: 'サイト機能一覧'
-        }
+          description: 'サイト機能一覧',
+        },
       ];
     }
 
@@ -427,7 +442,7 @@ javascript: (() => {
       return {
         id: 'list-detail',
         title: `List Detail: ${listTitle}`,
-        url: `${this.apiBaseUrl}/web/lists('${listId}')`
+        url: `${this.apiBaseUrl}/web/lists('${listId}')`,
       };
     }
 
@@ -435,7 +450,7 @@ javascript: (() => {
       return {
         id: 'list-fields',
         title: `List Fields: ${listTitle}`,
-        url: `${this.apiBaseUrl}/web/lists('${listId}')/fields`
+        url: `${this.apiBaseUrl}/web/lists('${listId}')/fields`,
       };
     }
 
@@ -443,7 +458,7 @@ javascript: (() => {
       return {
         id: 'list-items',
         title: `List Items: ${listTitle}`,
-        url: `${this.apiBaseUrl}/web/lists('${listId}')/items`
+        url: `${this.apiBaseUrl}/web/lists('${listId}')/items`,
       };
     }
   }
@@ -474,7 +489,7 @@ javascript: (() => {
       let startX, startY, startLeft, startTop;
 
       // ドラッグ開始
-      const startDrag = (e) => {
+      const startDrag = e => {
         // ドラッグハンドル内でのみドラッグを開始
         const dragHandle = panel.querySelector('#shima-drag-handle');
         if (!dragHandle || !dragHandle.contains(e.target)) {
@@ -501,14 +516,14 @@ javascript: (() => {
       };
 
       // ドラッグ中
-      const drag = (e) => {
+      const drag = e => {
         if (!isDragging) return;
 
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
 
-        panel.style.left = (startLeft + dx) + 'px';
-        panel.style.top = (startTop + dy) + 'px';
+        panel.style.left = startLeft + dx + 'px';
+        panel.style.top = startTop + dy + 'px';
       };
 
       // ドラッグ終了
@@ -560,8 +575,10 @@ javascript: (() => {
 
     // UI HTML生成
     generateHTML() {
-      const endpointsHTML = this.apiEndpoints.getEndpoints()
-        .map(endpoint => `
+      const endpointsHTML = this.apiEndpoints
+        .getEndpoints()
+        .map(
+          endpoint => `
           <div class="shima-api-endpoint" data-endpoint-id="${endpoint.id}"
                style="margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important; 
                       padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important; 
@@ -583,7 +600,9 @@ javascript: (() => {
               ${endpoint.description}
             </div>
           </div>
-        `).join('');
+        `
+        )
+        .join('');
 
       return `
         ${this.generateHeaderHTML()}
@@ -592,7 +611,7 @@ javascript: (() => {
           ${this.generateMainContentHTML()}
         </div>
       `;
-    }    // ヘッダーHTML生成
+    } // ヘッダーHTML生成
     generateHeaderHTML() {
       return `
         <div id="shima-drag-handle" style="padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.LG} !important; 
@@ -762,9 +781,12 @@ javascript: (() => {
       const sampleItem = data[0];
       const importantFields = Utils.getImportantFields(sampleItem, endpoint.id);
 
-      let tableHtml = '<div style="flex: 1 !important; overflow: auto !important; border: 1px solid #ddd !important; border-radius: 4px !important; min-height: 0 !important;">';
-      tableHtml += '<table id="shima-data-table" style="width: 100% !important; border-collapse: collapse !important; font-size: 12px !important; min-width: 800px !important;">';      // ヘッダー
-      tableHtml += '<thead><tr style="background: #f8f9fa !important; position: sticky !important; top: 0 !important; z-index: 10 !important;">';
+      let tableHtml =
+        '<div style="flex: 1 !important; overflow: auto !important; border: 1px solid #ddd !important; border-radius: 4px !important; min-height: 0 !important;">';
+      tableHtml +=
+        '<table id="shima-data-table" style="width: 100% !important; border-collapse: collapse !important; font-size: 12px !important; min-width: 800px !important;">'; // ヘッダー
+      tableHtml +=
+        '<thead><tr style="background: #f8f9fa !important; position: sticky !important; top: 0 !important; z-index: 10 !important;">';
 
       // 選択列のヘッダーを追加
       tableHtml += `<th style="border: 1px solid #ddd !important; padding: 8px !important; text-align: center !important;
@@ -772,7 +794,8 @@ javascript: (() => {
                       width: 50px !important; min-width: 50px !important; max-width: 50px !important;"
                       title="リスト選択">
                       <span style="font-size: 12px;">選択</span>
-                    </th>`; importantFields.forEach((field, index) => {
+                    </th>`;
+      importantFields.forEach((field, index) => {
         let fieldTitle = Utils.escapeHtml(field);
         let helpText = '';
 
@@ -793,10 +816,11 @@ javascript: (() => {
                         <span class="shima-sort-indicator" style="margin-left: 5px; color: #999; font-size: 10px;">⇅</span>
                       </th>`;
       });
-      tableHtml += '</tr></thead>';      // データ行
+      tableHtml += '</tr></thead>'; // データ行
       tableHtml += '<tbody>';
       data.forEach((item, index) => {
-        const rowStyle = index % 2 === 0 ? 'background: white !important;' : 'background: #f9f9f9 !important;';
+        const rowStyle =
+          index % 2 === 0 ? 'background: white !important;' : 'background: #f9f9f9 !important;';
         tableHtml += `<tr style="${rowStyle} transition: background-color 0.2s ease !important;"
                       data-row-index="${index}"
                       data-item-id="${item.Id || index}"
@@ -848,7 +872,8 @@ javascript: (() => {
                           }
                         })(this, ${index})">
                         <span class="shima-row-selector" style="font-size: 16px; color: #999;">○</span>
-                      </td>`; importantFields.forEach((field, columnIndex) => {
+                      </td>`;
+        importantFields.forEach((field, columnIndex) => {
           const value = Utils.getNestedValue(item, field);
           const displayValue = Utils.formatValue(value, field);
           const cellWidth = ['Title', 'Name', 'Description'].includes(field)
@@ -949,10 +974,10 @@ javascript: (() => {
         const response = await fetch(`${endpoint.url}?$select=*`, {
           method: 'GET',
           headers: {
-            'Accept': 'application/json;odata=verbose',
-            'Content-Type': 'application/json;odata=verbose'
+            Accept: 'application/json;odata=verbose',
+            'Content-Type': 'application/json;odata=verbose',
           },
-          credentials: 'same-origin'
+          credentials: 'same-origin',
         });
 
         if (!response.ok) {
@@ -962,7 +987,6 @@ javascript: (() => {
         const data = await response.json();
         this.displayResults(data, endpoint, resultsArea);
         this.saveResults(data);
-
       } catch (error) {
         this.displayError(error, resultsArea);
       } finally {
@@ -974,7 +998,8 @@ javascript: (() => {
     setLoadingState(executeBtn, resultsArea) {
       executeBtn.disabled = true;
       executeBtn.textContent = '⏳ 実行中...';
-      resultsArea.innerHTML = '<div style="text-align: center !important; padding: 40px !important;">⏳ API実行中...</div>';
+      resultsArea.innerHTML =
+        '<div style="text-align: center !important; padding: 40px !important;">⏳ API実行中...</div>';
     }
 
     // ローディング状態リセット
@@ -1016,16 +1041,14 @@ javascript: (() => {
 
     // テーブル結果表示
     displayTableResults(data, endpoint, resultsArea, filterText) {
-      let results = data.d ? (data.d.results || [data.d]) : [data];
+      let results = data.d ? data.d.results || [data.d] : [data];
       if (!Array.isArray(results)) {
         results = [results];
       }
 
       // フィルタリング
       if (filterText) {
-        results = results.filter(item =>
-          JSON.stringify(item).toLowerCase().includes(filterText)
-        );
+        results = results.filter(item => JSON.stringify(item).toLowerCase().includes(filterText));
       }
 
       if (results.length === 0) {
@@ -1035,7 +1058,8 @@ javascript: (() => {
           </div>
         `;
         return;
-      } const uiManager = new UIManager('', this.apiEndpoints);
+      }
+      const uiManager = new UIManager('', this.apiEndpoints);
       const table = uiManager.createTable(results, endpoint);
 
       // 現在のデータをグローバルに保存（選択機能で使用）
@@ -1084,16 +1108,16 @@ javascript: (() => {
 
     // 結果保存
     saveResults(data) {
-      const results = data.d ? (data.d.results || [data.d]) : [data];
+      const results = data.d ? data.d.results || [data.d] : [data];
       Utils.saveToStorage(CONSTANTS.STORAGE_KEY, results);
-    }    // リスト選択機能設定（ラジオボタン方式）
+    } // リスト選択機能設定（ラジオボタン方式）
     setupListSelection(resultsArea, results) {
       // ラジオボタン形式の選択機能は、既にテーブル生成時にonclick属性で実装済み
       // 追加で必要な機能があればここに実装
 
       // コントロールパネルのボタンイベント設定
       this.setupControlPanelListButtons();
-    }    // コントロールパネルのリストボタン設定
+    } // コントロールパネルのリストボタン設定
     setupControlPanelListButtons() {
       const detailsBtn = document.getElementById('shima-show-list-details');
       const fieldsBtn = document.getElementById('shima-show-list-fields');
@@ -1102,11 +1126,16 @@ javascript: (() => {
       if (detailsBtn) {
         detailsBtn.addEventListener('click', () => {
           if (!window.shimaSelectedItem || !window.shimaSelectedItem.data) {
-            alert('リストを選択してください。行の左端の○ボタンをクリックしてリストを選択してから実行してください。');
+            alert(
+              'リストを選択してください。行の左端の○ボタンをクリックしてリストを選択してから実行してください。'
+            );
             return;
           }
           const selectedData = window.shimaSelectedItem.data;
-          const endpoint = this.apiEndpoints.createListDetailEndpoint(selectedData.Id, selectedData.Title);
+          const endpoint = this.apiEndpoints.createListDetailEndpoint(
+            selectedData.Id,
+            selectedData.Title
+          );
           this.executeApi(endpoint);
         });
       }
@@ -1114,11 +1143,16 @@ javascript: (() => {
       if (fieldsBtn) {
         fieldsBtn.addEventListener('click', () => {
           if (!window.shimaSelectedItem || !window.shimaSelectedItem.data) {
-            alert('リストを選択してください。行の左端の○ボタンをクリックしてリストを選択してから実行してください。');
+            alert(
+              'リストを選択してください。行の左端の○ボタンをクリックしてリストを選択してから実行してください。'
+            );
             return;
           }
           const selectedData = window.shimaSelectedItem.data;
-          const endpoint = this.apiEndpoints.createListFieldsEndpoint(selectedData.Id, selectedData.Title);
+          const endpoint = this.apiEndpoints.createListFieldsEndpoint(
+            selectedData.Id,
+            selectedData.Title
+          );
           this.executeApi(endpoint);
         });
       }
@@ -1126,11 +1160,16 @@ javascript: (() => {
       if (itemsBtn) {
         itemsBtn.addEventListener('click', () => {
           if (!window.shimaSelectedItem || !window.shimaSelectedItem.data) {
-            alert('リストを選択してください。行の左端の○ボタンをクリックしてリストを選択してから実行してください。');
+            alert(
+              'リストを選択してください。行の左端の○ボタンをクリックしてリストを選択してから実行してください。'
+            );
             return;
           }
           const selectedData = window.shimaSelectedItem.data;
-          const endpoint = this.apiEndpoints.createListItemsEndpoint(selectedData.Id, selectedData.Title);
+          const endpoint = this.apiEndpoints.createListItemsEndpoint(
+            selectedData.Id,
+            selectedData.Title
+          );
           this.executeApi(endpoint);
         });
       }
@@ -1228,7 +1267,8 @@ javascript: (() => {
         const endpoint = { id: 'lists', title: 'Lists', description: 'サイト内のリスト一覧' };
 
         const uiManager = new UIManager('', this.apiEndpoints);
-        const table = uiManager.createTable(this.mainResults, endpoint); resultsArea.innerHTML = `
+        const table = uiManager.createTable(this.mainResults, endpoint);
+        resultsArea.innerHTML = `
           <div style="margin-bottom: 12px !important; font-size: 12px !important; color: #666 !important;">
             ${this.mainResults.length} 件の結果
           </div>
@@ -1276,7 +1316,7 @@ javascript: (() => {
       this.uiManager = uiManager;
       this.apiEndpoints = apiEndpoints;
       this.currentSelectedEndpoint = null;
-    }    // イベントリスナー設定
+    } // イベントリスナー設定
     setupEventListeners() {
       try {
         this.setupCloseButton();
@@ -1348,7 +1388,7 @@ javascript: (() => {
       } else {
         console.warn('実行ボタンが見つかりません');
       }
-    }    // クリアボタン
+    } // クリアボタン
     setupClearButton() {
       const clearBtn = document.getElementById('shima-clear-results');
       if (clearBtn) {
@@ -1395,7 +1435,7 @@ javascript: (() => {
       } else {
         console.warn('戻るボタンが見つかりません');
       }
-    }    // フィルター入力
+    } // フィルター入力
     setupFilterInput() {
       const filterInput = document.getElementById('shima-filter-input');
       if (filterInput) {
@@ -1431,7 +1471,9 @@ javascript: (() => {
           const rowText = row.textContent.toLowerCase();
           // さらに詳細な検索のために、セルのdata-value属性もチェック
           const cells = row.querySelectorAll('td[data-value]');
-          const cellValues = Array.from(cells).map(cell => cell.dataset.value.toLowerCase()).join(' ');
+          const cellValues = Array.from(cells)
+            .map(cell => cell.dataset.value.toLowerCase())
+            .join(' ');
 
           shouldShow = rowText.includes(filterText) || cellValues.includes(filterText);
         }
@@ -1513,7 +1555,8 @@ javascript: (() => {
 
             // 現在のエンドポイントを保存
             const endpointId = element.getAttribute('data-endpoint-id');
-            this.currentSelectedEndpoint = this.apiEndpoints.getEndpoints()
+            this.currentSelectedEndpoint = this.apiEndpoints
+              .getEndpoints()
               .find(e => e.id === endpointId);
 
             // 現在のエンドポイント表示を更新
@@ -1531,7 +1574,7 @@ javascript: (() => {
       } else {
         console.warn('APIエンドポイント要素が見つかりました');
       }
-    }    // テーブルソート機能設定
+    } // テーブルソート機能設定
     setupTableSort() {
       // 既存のイベントリスナーがある場合は削除
       if (window.shimaTableSortHandler) {
@@ -1539,7 +1582,7 @@ javascript: (() => {
       }
 
       // 新しいイベントハンドラーを作成
-      window.shimaTableSortHandler = (event) => {
+      window.shimaTableSortHandler = event => {
         const th = event.target.closest('th[data-column]');
         if (!th) return;
 
@@ -1639,8 +1682,10 @@ javascript: (() => {
 
       // 行の背景色を再設定
       rows.forEach((row, index) => {
-        const newStyle = index % 2 === 0 ? 'background: white !important;' : 'background: #f9f9f9 !important;';
-        row.style.cssText = row.style.cssText.replace(/background: [^;]*!important;/g, '') + newStyle;
+        const newStyle =
+          index % 2 === 0 ? 'background: white !important;' : 'background: #f9f9f9 !important;';
+        row.style.cssText =
+          row.style.cssText.replace(/background: [^;]*!important;/g, '') + newStyle;
 
         // hover効果を再設定
         const originalBg = index % 2 === 0 ? 'white' : '#f9f9f9';
@@ -1693,9 +1738,9 @@ javascript: (() => {
       window.addEventListener('resize', handleResize);
 
       // パネルが削除された時にイベントリスナーを削除
-      const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          mutation.removedNodes.forEach((node) => {
+      const observer = new MutationObserver(mutations => {
+        mutations.forEach(mutation => {
+          mutation.removedNodes.forEach(node => {
             if (node === panel) {
               window.removeEventListener('resize', handleResize);
               observer.disconnect();
@@ -1737,14 +1782,16 @@ javascript: (() => {
         return true;
       }
       return false;
-    }    // SharePoint サイトの検証
+    } // SharePoint サイトの検証
     validateSharePointSite() {
       try {
         const currentUrl = window.location.href;
 
         // URLからクエリパラメータとハッシュを除去してベースURLを取得
         const cleanUrl = currentUrl.split('?')[0].split('#')[0];
-        const sharepointMatch = cleanUrl.match(/^(?<domain>https?:\/\/[^\/]+)\/sites\/(?<siteName>[^\/]+)/);
+        const sharepointMatch = cleanUrl.match(
+          /^(?<domain>https?:\/\/[^\/]+)\/sites\/(?<siteName>[^\/]+)/
+        );
 
         if (!sharepointMatch) {
           alert('このブックマークレットはSharePointサイトでのみ動作します。');
@@ -1758,7 +1805,7 @@ javascript: (() => {
         alert('サイト情報の取得に失敗しました: ' + error.message);
         return false;
       }
-    }// URL設定
+    } // URL設定
     setupUrls() {
       try {
         if (!this.sharepointMatch || !this.sharepointMatch.groups) {
@@ -1772,22 +1819,33 @@ javascript: (() => {
         const cleanUrl = currentUrl.split('?')[0].split('#')[0];
 
         // TopSite か ChildSite かを判別
-        const childSiteMatch = cleanUrl.match(/^(?<protocol>https?:\/\/[^\/]+)\/sites\/(?<siteName>[^\/]+)\/(?<thirdLevelPath>[^\/]+)/);
+        const childSiteMatch = cleanUrl.match(
+          /^(?<protocol>https?:\/\/[^\/]+)\/sites\/(?<siteName>[^\/]+)\/(?<thirdLevelPath>[^\/]+)/
+        );
 
         // SharePointの特殊パス（システムディレクトリ）を定義
         const systemPaths = [
-          'pages', 'lists', 'shared%20documents', 'shared documents', 'forms', 'sitepages',
-          'style%20library', 'style library', 'site%20assets', 'site assets', 'siteassets'
+          'pages',
+          'lists',
+          'shared%20documents',
+          'shared documents',
+          'forms',
+          'sitepages',
+          'style%20library',
+          'style library',
+          'site%20assets',
+          'site assets',
+          'siteassets',
         ];
 
         const thirdLevelPath = childSiteMatch?.groups?.thirdLevelPath || '';
 
         // システムパス（SharePointの特殊ディレクトリ）かどうかをチェック
-        const isSystemPath = thirdLevelPath && (
-          systemPaths.includes(thirdLevelPath.toLowerCase()) ||
-          systemPaths.includes(decodeURIComponent(thirdLevelPath).toLowerCase()) ||
-          thirdLevelPath.startsWith('_') // _layouts, _catalogs, _api, _vti_, etc.
-        );
+        const isSystemPath =
+          thirdLevelPath &&
+          (systemPaths.includes(thirdLevelPath.toLowerCase()) ||
+            systemPaths.includes(decodeURIComponent(thirdLevelPath).toLowerCase()) ||
+            thirdLevelPath.startsWith('_')); // _layouts, _catalogs, _api, _vti_, etc.
 
         // 実際の子サイトかどうかを判別（システムパスでない場合のみ）
         const isChildSite = childSiteMatch && thirdLevelPath && !isSystemPath;
@@ -1876,5 +1934,4 @@ javascript: (() => {
 
   const app = new SharePointApiNavigator();
   app.init();
-
 })();

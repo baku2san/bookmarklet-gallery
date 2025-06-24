@@ -20,7 +20,7 @@ javascript: (() => {
     PANEL_ID: 'shima-edge-explorer-panel',
     Z_INDEX: 2147483647,
     PANEL_WIDTH: '900px',
-    PANEL_HEIGHT: '700px'
+    PANEL_HEIGHT: '700px',
   };
 
   // デザインシステム（Fluent Design準拠）
@@ -35,18 +35,18 @@ javascript: (() => {
         PRIMARY: '#ffffff',
         SECONDARY: '#f8f9fa',
         TERTIARY: '#f3f2f1',
-        ACCENT: '#faf9f8'
+        ACCENT: '#faf9f8',
       },
       TEXT: {
         PRIMARY: '#323130',
         SECONDARY: '#605e5c',
         MUTED: '#8a8886',
-        INVERSE: '#ffffff'
+        INVERSE: '#ffffff',
       },
       BORDER: {
         DEFAULT: '#d2d0ce',
-        SUBTLE: '#edebe9'
-      }
+        SUBTLE: '#edebe9',
+      },
     },
     SPACING: {
       XS: '4px',
@@ -54,39 +54,40 @@ javascript: (() => {
       MD: '12px',
       LG: '16px',
       XL: '20px',
-      XXL: '24px'
+      XXL: '24px',
     },
     BORDER_RADIUS: {
       SM: '4px',
       MD: '6px',
-      LG: '8px'
+      LG: '8px',
     },
     SHADOWS: {
       CARD: '0 1px 3px rgba(0, 0, 0, 0.1)',
       PANEL: '0 8px 24px rgba(0, 0, 0, 0.15)',
-      FOCUS: '0 0 0 2px rgba(0, 120, 212, 0.3)'
+      FOCUS: '0 0 0 2px rgba(0, 120, 212, 0.3)',
     },
     TYPOGRAPHY: {
-      FONT_FAMILY: '"Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif',
+      FONT_FAMILY:
+        '"Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif',
       SIZES: {
         H1: '20px',
         H2: '16px',
         H3: '14px',
         BODY: '14px',
         SMALL: '12px',
-        CAPTION: '11px'
+        CAPTION: '11px',
       },
       WEIGHTS: {
         REGULAR: '400',
         SEMIBOLD: '600',
-        BOLD: '700'
-      }
+        BOLD: '700',
+      },
     },
     TRANSITIONS: {
       DEFAULT: '0.2s ease',
       FAST: '0.1s ease',
-      SLOW: '0.3s ease'
-    }
+      SLOW: '0.3s ease',
+    },
   };
 
   // =============================================================================
@@ -99,7 +100,7 @@ javascript: (() => {
         apis: {},
         performance: {},
         extensions: {},
-        limitations: []
+        limitations: [],
       };
     }
 
@@ -125,7 +126,7 @@ javascript: (() => {
         hardwareConcurrency: navigator.hardwareConcurrency || 'Unknown',
         maxTouchPoints: navigator.maxTouchPoints || 0,
         vendor: navigator.vendor || 'Unknown',
-        vendorSub: navigator.vendorSub || 'Unknown'
+        vendorSub: navigator.vendorSub || 'Unknown',
       };
     }
 
@@ -151,12 +152,12 @@ javascript: (() => {
         'Notification API': 'window.Notification',
         'Service Worker': 'navigator.serviceWorker',
         'Web Workers': 'window.Worker',
-        'WebAssembly': 'window.WebAssembly',
+        WebAssembly: 'window.WebAssembly',
         'Fetch API': 'window.fetch',
-        'WebRTC': 'window.RTCPeerConnection',
+        WebRTC: 'window.RTCPeerConnection',
         'Web Storage': 'window.localStorage',
-        'IndexedDB': 'window.indexedDB',
-        'WebGL': 'window.WebGLRenderingContext',
+        IndexedDB: 'window.indexedDB',
+        WebGL: 'window.WebGLRenderingContext',
         'Web Audio': 'window.AudioContext || window.webkitAudioContext',
         'Fullscreen API': 'document.fullscreenEnabled',
         'Page Visibility': 'document.visibilityState',
@@ -174,7 +175,8 @@ javascript: (() => {
         'Resize Observer': 'window.ResizeObserver',
         'Payment Request': 'window.PaymentRequest',
         'Web Authentication': 'navigator.credentials',
-        'Background Sync': 'window.ServiceWorkerRegistration && window.ServiceWorkerRegistration.prototype.sync',
+        'Background Sync':
+          'window.ServiceWorkerRegistration && window.ServiceWorkerRegistration.prototype.sync',
         'Push Manager': 'window.PushManager',
         'Media Devices': 'navigator.mediaDevices',
         'Picture in Picture': 'document.pictureInPictureEnabled',
@@ -197,7 +199,7 @@ javascript: (() => {
         'Web Serial': 'navigator.serial',
         'Gamepad API': 'navigator.getGamepads',
         'Sensor APIs': 'window.Accelerometer || window.Gyroscope',
-        'Web VR/XR': 'navigator.xr || navigator.getVRDisplays'
+        'Web VR/XR': 'navigator.xr || navigator.getVRDisplays',
       };
 
       this.results.apis = {};
@@ -205,12 +207,12 @@ javascript: (() => {
         try {
           this.results.apis[name] = {
             available: !!eval(check),
-            value: this.getAPIValue(check)
+            value: this.getAPIValue(check),
           };
         } catch (e) {
           this.results.apis[name] = {
             available: false,
-            error: e.message
+            error: e.message,
           };
         }
       }
@@ -232,18 +234,22 @@ javascript: (() => {
     analyzePerformance() {
       this.results.performance = {
         timing: performance.timing ? this.getTimingInfo() : null,
-        navigation: performance.navigation ? {
-          type: performance.navigation.type,
-          redirectCount: performance.navigation.redirectCount
-        } : null,
-        memory: performance.memory ? {
-          usedJSHeapSize: this.formatBytes(performance.memory.usedJSHeapSize),
-          totalJSHeapSize: this.formatBytes(performance.memory.totalJSHeapSize),
-          jsHeapSizeLimit: this.formatBytes(performance.memory.jsHeapSizeLimit)
-        } : null,
+        navigation: performance.navigation
+          ? {
+              type: performance.navigation.type,
+              redirectCount: performance.navigation.redirectCount,
+            }
+          : null,
+        memory: performance.memory
+          ? {
+              usedJSHeapSize: this.formatBytes(performance.memory.usedJSHeapSize),
+              totalJSHeapSize: this.formatBytes(performance.memory.totalJSHeapSize),
+              jsHeapSizeLimit: this.formatBytes(performance.memory.jsHeapSizeLimit),
+            }
+          : null,
         timeOrigin: performance.timeOrigin,
         now: Math.round(performance.now()),
-        entries: performance.getEntries ? performance.getEntries().length : 0
+        entries: performance.getEntries ? performance.getEntries().length : 0,
       };
     }
 
@@ -257,7 +263,7 @@ javascript: (() => {
         domComplete: timing.domComplete,
         domInteractive: timing.domInteractive,
         pageLoadTime: timing.loadEventEnd - timing.navigationStart,
-        domReadyTime: timing.domContentLoadedEventEnd - timing.navigationStart
+        domReadyTime: timing.domContentLoadedEventEnd - timing.navigationStart,
       };
     }
 
@@ -266,7 +272,7 @@ javascript: (() => {
       this.results.extensions = {
         chromeExtensions: !!window.chrome && !!window.chrome.runtime,
         extensionInfo: this.getExtensionInfo(),
-        webStoreAccess: this.checkWebStoreAccess()
+        webStoreAccess: this.checkWebStoreAccess(),
       };
     }
 
@@ -281,7 +287,7 @@ javascript: (() => {
           id: chrome.runtime.id || 'N/A',
           manifest: chrome.runtime.getManifest ? 'Available' : 'Not Available',
           onConnect: !!chrome.runtime.onConnect,
-          onMessage: !!chrome.runtime.onMessage
+          onMessage: !!chrome.runtime.onMessage,
         };
       } catch (e) {
         return `Error: ${e.message}`;
@@ -293,7 +299,7 @@ javascript: (() => {
       return {
         domain: location.hostname.includes('microsoftedge.microsoft.com'),
         chromeWebStore: location.hostname.includes('chrome.google.com'),
-        extensionPage: location.protocol === 'chrome-extension:'
+        extensionPage: location.protocol === 'chrome-extension:',
       };
     }
 
@@ -304,32 +310,32 @@ javascript: (() => {
           category: 'お気に入り (Bookmarks)',
           limitation: '直接アクセス不可',
           reason: 'Webページからブラウザのお気に入りAPIにはアクセスできません',
-          workaround: 'ブラウザ拡張機能での実装が必要'
+          workaround: 'ブラウザ拡張機能での実装が必要',
         },
         {
           category: 'ブラウザ履歴',
           limitation: '読み取り専用制限',
           reason: 'セキュリティ上の理由で履歴の完全な読み取り・操作は制限されています',
-          workaround: 'History API は現在のセッション内のみ操作可能'
+          workaround: 'History API は現在のセッション内のみ操作可能',
         },
         {
           category: 'タブ管理',
           limitation: 'クロスオリジン制限',
           reason: '他のタブ・ウィンドウへの直接アクセスは不可',
-          workaround: 'ポップアップウィンドウやブラウザ拡張機能を使用'
+          workaround: 'ポップアップウィンドウやブラウザ拡張機能を使用',
         },
         {
           category: 'システム設定',
           limitation: 'ブラウザ設定アクセス不可',
           reason: 'プライバシー保護のためブラウザ設定への直接アクセスは禁止',
-          workaround: '一部情報は User Agent や API 経由で取得可能'
+          workaround: '一部情報は User Agent や API 経由で取得可能',
         },
         {
           category: 'ファイルシステム',
           limitation: 'サンドボックス制限',
           reason: 'セキュリティのためファイルシステムへの直接アクセスは制限',
-          workaround: 'File System Access API (実験的) または File API を使用'
-        }
+          workaround: 'File System Access API (実験的) または File API を使用',
+        },
       ];
     }
 
@@ -359,8 +365,8 @@ javascript: (() => {
               charging: battery.charging,
               level: Math.round(battery.level * 100) + '%',
               chargingTime: battery.chargingTime,
-              dischargingTime: battery.dischargingTime
-            }
+              dischargingTime: battery.dischargingTime,
+            },
           };
         }
 
@@ -372,14 +378,21 @@ javascript: (() => {
             value: {
               quota: this.formatBytes(estimate.quota),
               usage: this.formatBytes(estimate.usage),
-              usagePercent: Math.round((estimate.usage / estimate.quota) * 100) + '%'
-            }
+              usagePercent: Math.round((estimate.usage / estimate.quota) * 100) + '%',
+            },
           };
         }
 
         // Permissions
         if (navigator.permissions) {
-          const permissions = ['camera', 'microphone', 'geolocation', 'notifications', 'push', 'persistent-storage'];
+          const permissions = [
+            'camera',
+            'microphone',
+            'geolocation',
+            'notifications',
+            'push',
+            'persistent-storage',
+          ];
           const permissionResults = {};
 
           for (const permission of permissions) {
@@ -393,7 +406,7 @@ javascript: (() => {
 
           this.results.apis['Permission States'] = {
             available: true,
-            value: permissionResults
+            value: permissionResults,
           };
         }
       } catch (e) {
@@ -449,7 +462,7 @@ javascript: (() => {
         `color: ${DESIGN_SYSTEM.COLORS.TEXT.PRIMARY} !important`,
         'overflow: hidden !important',
         'display: flex !important',
-        'flex-direction: column !important'
+        'flex-direction: column !important',
       ].join(';');
     }
 
@@ -494,13 +507,15 @@ javascript: (() => {
         { id: 'apis', icon: '🔌', label: 'Web APIs' },
         { id: 'performance', icon: '⚡', label: 'パフォーマンス' },
         { id: 'extensions', icon: '🧩', label: '拡張機能' },
-        { id: 'limitations', icon: '🚫', label: '制約事項' }
+        { id: 'limitations', icon: '🚫', label: '制約事項' },
       ];
 
       return `
         <div style="display: flex !important; border-bottom: 1px solid ${DESIGN_SYSTEM.COLORS.BORDER.DEFAULT} !important; 
                     background: ${DESIGN_SYSTEM.COLORS.BACKGROUND.TERTIARY} !important;">
-          ${tabs.map(tab => `
+          ${tabs
+            .map(
+              tab => `
             <button class="edge-explorer-tab" data-tab="${tab.id}" 
                     style="flex: 1 !important; padding: ${DESIGN_SYSTEM.SPACING.MD} ${DESIGN_SYSTEM.SPACING.SM} !important;
                            border: none !important; background: ${this.currentTab === tab.id ? DESIGN_SYSTEM.COLORS.BACKGROUND.PRIMARY : 'transparent'} !important;
@@ -512,7 +527,9 @@ javascript: (() => {
               <span>${tab.icon}</span>
               <span>${tab.label}</span>
             </button>
-          `).join('')}
+          `
+            )
+            .join('')}
         </div>
       `;
     }
@@ -542,9 +559,9 @@ javascript: (() => {
 
     // ブラウザタブ生成
     generateBrowserTab(browser) {
-      const edgeStatus = browser.isEdge ?
-        `<span style="color: ${DESIGN_SYSTEM.COLORS.SUCCESS} !important;">✅ Microsoft Edge</span>` :
-        `<span style="color: ${DESIGN_SYSTEM.COLORS.WARNING} !important;">⚠️ Edge以外のブラウザ</span>`;
+      const edgeStatus = browser.isEdge
+        ? `<span style="color: ${DESIGN_SYSTEM.COLORS.SUCCESS} !important;">✅ Microsoft Edge</span>`
+        : `<span style="color: ${DESIGN_SYSTEM.COLORS.WARNING} !important;">⚠️ Edge以外のブラウザ</span>`;
 
       return `
         <div class="info-section">
@@ -623,24 +640,32 @@ javascript: (() => {
             ✅ 利用可能な API (${available.length})
           </h3>
           <div class="api-grid">
-            ${available.map(([name, api]) => `
+            ${available
+              .map(
+                ([name, api]) => `
               <div class="api-item available">
                 <div class="api-name">${name}</div>
                 <div class="api-value">${this.formatAPIValue(api.value)}</div>
               </div>
-            `).join('')}
+            `
+              )
+              .join('')}
           </div>
 
           <h3 style="color: ${DESIGN_SYSTEM.COLORS.WARNING} !important; margin: ${DESIGN_SYSTEM.SPACING.LG} 0 ${DESIGN_SYSTEM.SPACING.MD} 0 !important;">
             ❌ 利用不可の API (${unavailable.length})
           </h3>
           <div class="api-grid">
-            ${unavailable.map(([name, api]) => `
+            ${unavailable
+              .map(
+                ([name, api]) => `
               <div class="api-item unavailable">
                 <div class="api-name">${name}</div>
                 <div class="api-error">${api.error || 'Not supported'}</div>
               </div>
-            `).join('')}
+            `
+              )
+              .join('')}
           </div>
         </div>
       `;
@@ -663,7 +688,9 @@ javascript: (() => {
             ⚡ パフォーマンス情報
           </h3>
           
-          ${performance.memory ? `
+          ${
+            performance.memory
+              ? `
             <h4 style="color: ${DESIGN_SYSTEM.COLORS.PRIMARY} !important; margin: ${DESIGN_SYSTEM.SPACING.LG} 0 ${DESIGN_SYSTEM.SPACING.MD} 0 !important;">
               💾 メモリ使用量
             </h4>
@@ -672,9 +699,13 @@ javascript: (() => {
               <div><strong>総量:</strong> ${performance.memory.totalJSHeapSize}</div>
               <div><strong>上限:</strong> ${performance.memory.jsHeapSizeLimit}</div>
             </div>
-          ` : ''}
+          `
+              : ''
+          }
           
-          ${performance.timing ? `
+          ${
+            performance.timing
+              ? `
             <h4 style="color: ${DESIGN_SYSTEM.COLORS.PRIMARY} !important; margin: ${DESIGN_SYSTEM.SPACING.LG} 0 ${DESIGN_SYSTEM.SPACING.MD} 0 !important;">
               ⏱️ ページロード時間
             </h4>
@@ -684,7 +715,9 @@ javascript: (() => {
               <div><strong>DOM 完了:</strong> ${performance.timing.domComplete || 0}ms</div>
               <div><strong>インタラクティブ:</strong> ${performance.timing.domInteractive || 0}ms</div>
             </div>
-          ` : ''}
+          `
+              : ''
+          }
 
           <h4 style="color: ${DESIGN_SYSTEM.COLORS.PRIMARY} !important; margin: ${DESIGN_SYSTEM.SPACING.LG} 0 ${DESIGN_SYSTEM.SPACING.MD} 0 !important;">
             🔢 その他の情報
@@ -693,10 +726,14 @@ javascript: (() => {
             <div><strong>Time Origin:</strong> ${performance.timeOrigin || 'Unknown'}</div>
             <div><strong>現在時刻:</strong> ${performance.now || 0}ms</div>
             <div><strong>Performance Entries:</strong> ${performance.entries || 0}</div>
-            ${performance.navigation ? `
+            ${
+              performance.navigation
+                ? `
               <div><strong>ナビゲーション種別:</strong> ${performance.navigation.type}</div>
               <div><strong>リダイレクト回数:</strong> ${performance.navigation.redirectCount}</div>
-            ` : ''}
+            `
+                : ''
+            }
           </div>
         </div>
       `;
@@ -724,9 +761,11 @@ javascript: (() => {
                       padding: ${DESIGN_SYSTEM.SPACING.MD} !important; 
                       border-radius: ${DESIGN_SYSTEM.BORDER_RADIUS.MD} !important;
                       font-family: monospace !important; font-size: ${DESIGN_SYSTEM.TYPOGRAPHY.SIZES.SMALL} !important;">
-            ${typeof extensions.extensionInfo === 'object' ?
-          JSON.stringify(extensions.extensionInfo, null, 2) :
-          extensions.extensionInfo}
+            ${
+              typeof extensions.extensionInfo === 'object'
+                ? JSON.stringify(extensions.extensionInfo, null, 2)
+                : extensions.extensionInfo
+            }
           </div>
 
           <div style="margin-top: ${DESIGN_SYSTEM.SPACING.LG} !important; 
@@ -760,7 +799,9 @@ javascript: (() => {
             ブラウザのセキュリティ制限により多くの内部機能にはアクセスできません。
           </div>
 
-          ${limitations.map(limitation => `
+          ${limitations
+            .map(
+              limitation => `
             <div class="limitation-item">
               <h4 style="color: ${DESIGN_SYSTEM.COLORS.DANGER} !important; margin-bottom: ${DESIGN_SYSTEM.SPACING.SM} !important;">
                 🚫 ${limitation.category}
@@ -777,7 +818,9 @@ javascript: (() => {
                 <strong>回避策:</strong> ${limitation.workaround}
               </div>
             </div>
-          `).join('')}
+          `
+            )
+            .join('')}
 
           <div style="margin-top: ${DESIGN_SYSTEM.SPACING.LG} !important; 
                       padding: ${DESIGN_SYSTEM.SPACING.MD} !important; 
@@ -810,14 +853,14 @@ javascript: (() => {
       // タブ切り替え
       const tabs = document.querySelectorAll('.edge-explorer-tab');
       tabs.forEach(tab => {
-        tab.addEventListener('click', (e) => {
+        tab.addEventListener('click', e => {
           const tabId = e.currentTarget.getAttribute('data-tab');
           this.switchTab(tabId);
         });
       });
 
       // ESCキーで閉じる
-      document.addEventListener('keydown', (e) => {
+      document.addEventListener('keydown', e => {
         if (e.key === 'Escape' && this.panel) {
           this.closePanel();
         }
@@ -847,8 +890,12 @@ javascript: (() => {
       const tabButtons = document.querySelectorAll('.edge-explorer-tab');
       tabButtons.forEach(button => {
         const isActive = button.getAttribute('data-tab') === tabId;
-        button.style.background = isActive ? DESIGN_SYSTEM.COLORS.BACKGROUND.PRIMARY : 'transparent';
-        button.style.color = isActive ? DESIGN_SYSTEM.COLORS.PRIMARY : DESIGN_SYSTEM.COLORS.TEXT.SECONDARY;
+        button.style.background = isActive
+          ? DESIGN_SYSTEM.COLORS.BACKGROUND.PRIMARY
+          : 'transparent';
+        button.style.color = isActive
+          ? DESIGN_SYSTEM.COLORS.PRIMARY
+          : DESIGN_SYSTEM.COLORS.TEXT.SECONDARY;
         button.style.borderBottomColor = isActive ? DESIGN_SYSTEM.COLORS.PRIMARY : 'transparent';
       });
     }
@@ -1009,7 +1056,6 @@ javascript: (() => {
       uiManager.setupEventHandlers();
 
       console.log('🚀 Edge Explorer: 起動完了');
-
     } catch (error) {
       console.error('❌ Edge Explorer: エラー発生', error);
       alert('Edge Explorer でエラーが発生しました: ' + error.message);

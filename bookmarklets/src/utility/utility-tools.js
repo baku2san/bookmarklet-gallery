@@ -1,7 +1,7 @@
 // ====================================================================================
 // 🛠️ Utility Tools - 多機能ユーティリティツール
 // ====================================================================================
-// 
+//
 // 📋 概要:
 //   URL操作、言語切り替え、Office文書ダウンロードなど、
 //   日常的によく使う便利機能を統合したツールです。
@@ -272,7 +272,7 @@
         search: urlObj.search,
         hash: urlObj.hash,
         params: params,
-        origin: urlObj.origin
+        origin: urlObj.origin,
       };
     } catch (e) {
       return null;
@@ -330,7 +330,7 @@
         { from: /[?&]lang=en/gi, to: '?lang=ja' },
         { from: /[?&]lang=ja/gi, to: '?lang=en' },
         { from: /[?&]language=english/gi, to: '?language=japanese' },
-        { from: /[?&]language=japanese/gi, to: '?language=english' }
+        { from: /[?&]language=japanese/gi, to: '?language=english' },
       ];
 
       for (const pattern of patterns) {
@@ -406,7 +406,7 @@
         port: location.port || 'default',
         lastModified: document.lastModified,
         charset: document.characterSet,
-        referrer: document.referrer || 'なし'
+        referrer: document.referrer || 'なし',
       };
 
       const infoText = Object.entries(info)
@@ -419,7 +419,7 @@
       } else {
         showStatus('❌ コピーに失敗しました', 'error');
       }
-    }
+    },
   };
 
   // =================================================================================
@@ -513,7 +513,7 @@
   });
 
   // ボタンのクリックイベント
-  panel.addEventListener('click', (e) => {
+  panel.addEventListener('click', e => {
     const button = e.target.closest('[data-action]');
     if (button) {
       const action = button.getAttribute('data-action');
@@ -531,5 +531,4 @@
 
   // 初期化完了メッセージ
   showStatus('🚀 Utility Tools が起動しました', 'info', 2000);
-
 })();

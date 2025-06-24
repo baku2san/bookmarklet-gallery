@@ -11,7 +11,9 @@
  */
 
 javascript: (function () {
-    'use strict';
+  'use strict';
 
-    alert('API Tester は現在開発中です。\n\n実装予定機能:\n• HTTP リクエスト送信\n• レスポンス表示\n• API開発・動作確認');
+  alert(
+    'API Tester は現在開発中です。\n\n実装予定機能:\n• HTTP リクエスト送信\n• レスポンス表示\n• API開発・動作確認'
+  );
 })();

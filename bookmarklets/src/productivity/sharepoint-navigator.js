@@ -22,10 +22,13 @@ javascript: (function () {
     window.originalConsoleWarn = console.warn;
     console.warn = function (...args) {
       // DOMNodeRemoved関連の警告を抑制
-      if (args[0] && typeof args[0] === 'string' &&
+      if (
+        args[0] &&
+        typeof args[0] === 'string' &&
         (args[0].includes('DOMNodeRemoved') ||
           args[0].includes('mutation event') ||
-          args[0].includes('Mutation Events'))) {
+          args[0].includes('Mutation Events'))
+      ) {
         return;
       }
       window.originalConsoleWarn.apply(console, args);
@@ -38,35 +41,35 @@ javascript: (function () {
   const SHAREPOINT_DESIGN_SYSTEM = {
     // カラーパレット（Microsoft Fluent Design準拠）
     COLORS: {
-      PRIMARY: '#0078d4',           // SharePoint Blue
-      PRIMARY_HOVER: '#106ebe',     // Darker blue for hover
-      SECONDARY: '#605e5c',         // Text secondary
-      SUCCESS: '#107c10',           // Green
-      WARNING: '#ff8c00',          // Orange
-      DANGER: '#d13438',           // Red
+      PRIMARY: '#0078d4', // SharePoint Blue
+      PRIMARY_HOVER: '#106ebe', // Darker blue for hover
+      SECONDARY: '#605e5c', // Text secondary
+      SUCCESS: '#107c10', // Green
+      WARNING: '#ff8c00', // Orange
+      DANGER: '#d13438', // Red
 
       // 背景色
       BACKGROUND: {
-        PRIMARY: '#ffffff',         // White
-        SECONDARY: '#f8f9fa',       // Light gray
-        TERTIARY: '#f3f2f1',        // Lighter gray
-        PANEL: '#faf9f8'           // Panel background
+        PRIMARY: '#ffffff', // White
+        SECONDARY: '#f8f9fa', // Light gray
+        TERTIARY: '#f3f2f1', // Lighter gray
+        PANEL: '#faf9f8', // Panel background
       },
 
       // テキスト色
       TEXT: {
-        PRIMARY: '#323130',         // Dark text
-        SECONDARY: '#605e5c',       // Secondary text
-        MUTED: '#8a8886',          // Muted text
-        INVERSE: '#ffffff'          // White text
+        PRIMARY: '#323130', // Dark text
+        SECONDARY: '#605e5c', // Secondary text
+        MUTED: '#8a8886', // Muted text
+        INVERSE: '#ffffff', // White text
       },
 
       // ボーダー色
       BORDER: {
-        DEFAULT: '#edebe9',         // Default border
-        FOCUS: '#0078d4',          // Focus border
-        SEPARATOR: '#e1dfdd'        // Separator
-      }
+        DEFAULT: '#edebe9', // Default border
+        FOCUS: '#0078d4', // Focus border
+        SEPARATOR: '#e1dfdd', // Separator
+      },
     },
 
     // タイポグラフィ
@@ -80,21 +83,21 @@ javascript: (function () {
         H4: '14px',
         BODY: '14px',
         CAPTION: '12px',
-        SMALL: '11px'
+        SMALL: '11px',
       },
 
       WEIGHTS: {
         NORMAL: '400',
         MEDIUM: '500',
         SEMIBOLD: '600',
-        BOLD: '700'
+        BOLD: '700',
       },
 
       LINE_HEIGHTS: {
         TIGHT: '1.2',
         NORMAL: '1.4',
-        RELAXED: '1.6'
-      }
+        RELAXED: '1.6',
+      },
     },
 
     // スペーシング
@@ -105,7 +108,7 @@ javascript: (function () {
       LG: '16px',
       XL: '20px',
       XXL: '24px',
-      XXXL: '32px'
+      XXXL: '32px',
     },
 
     // ボーダー半径
@@ -114,7 +117,7 @@ javascript: (function () {
       MD: '4px',
       LG: '6px',
       XL: '8px',
-      ROUND: '50%'
+      ROUND: '50%',
     },
 
     // シャドウ
@@ -122,14 +125,14 @@ javascript: (function () {
       CARD: '0 1px 3px rgba(0, 0, 0, 0.1)',
       PANEL: '0 4px 8px rgba(0, 0, 0, 0.1)',
       MODAL: '0 8px 16px rgba(0, 0, 0, 0.15)',
-      FOCUS: '0 0 0 2px rgba(0, 120, 212, 0.3)'
+      FOCUS: '0 0 0 2px rgba(0, 120, 212, 0.3)',
     },
 
     // アニメーション
     TRANSITIONS: {
       FAST: '0.15s ease',
       NORMAL: '0.2s ease',
-      SLOW: '0.3s ease'
+      SLOW: '0.3s ease',
     },
 
     // レイアウト
@@ -137,8 +140,8 @@ javascript: (function () {
       PANEL_MAX_WIDTH: '800px',
       PANEL_MIN_WIDTH: '320px',
       SIDEBAR_WIDTH: '250px',
-      HEADER_HEIGHT: '48px'
-    }
+      HEADER_HEIGHT: '48px',
+    },
   };
 
   // =============================================================================
@@ -157,14 +160,14 @@ javascript: (function () {
       HIGH: 'high',
       MEDIUM: 'medium',
       LOW: 'low',
-      ALL: 'all'
+      ALL: 'all',
     },
 
     PRIORITY_COLORS: {
       all: SHAREPOINT_DESIGN_SYSTEM.COLORS.PRIMARY,
       high: SHAREPOINT_DESIGN_SYSTEM.COLORS.DANGER,
       medium: SHAREPOINT_DESIGN_SYSTEM.COLORS.WARNING,
-      low: SHAREPOINT_DESIGN_SYSTEM.COLORS.SUCCESS
+      low: SHAREPOINT_DESIGN_SYSTEM.COLORS.SUCCESS,
     },
 
     ICONS: {
@@ -177,8 +180,8 @@ javascript: (function () {
       ACTION: '⚡',
       COLLECTION: '🏛️',
       TOOLS: '🔧',
-      MAINTENANCE: '🔧'
-    }
+      MAINTENANCE: '🔧',
+    },
   };
 
   // =============================================================================
@@ -252,7 +255,8 @@ javascript: (function () {
 
       const str = String(value);
       // JavaScriptの文字列リテラル用のエスケープ
-      return str.replace(/\\/g, '\\\\')
+      return str
+        .replace(/\\/g, '\\\\')
         .replace(/'/g, "\\'")
         .replace(/"/g, '\\"')
         .replace(/\n/g, '\\n')
@@ -391,7 +395,7 @@ javascript: (function () {
         'shimaNavUpdatePriorityFilter',
         'shimaNavClearFilters',
         'shimaNavToggleCategory',
-        'shimaNavClosePanel'
+        'shimaNavClosePanel',
       ];
 
       functionNames.forEach(name => {
@@ -399,39 +403,52 @@ javascript: (function () {
           delete window[name];
         }
       });
-    },    /**
+    } /**
      * SharePointサイト情報を取得
      * @returns {Object|null} サイト情報オブジェクト、またはnull（SharePointサイトでない場合）
-     */
+     */,
     getSharePointSiteInfo: function () {
       const currentUrl = window.location.href;
 
       // URLからクエリパラメータとハッシュを除去してベースURLを取得
       const cleanUrl = currentUrl.split('?')[0].split('#')[0];
-      const sharepointMatch = cleanUrl.match(/^(?<domain>https?:\/\/[^\/]+)\/sites\/(?<siteName>[^\/]+)/);
+      const sharepointMatch = cleanUrl.match(
+        /^(?<domain>https?:\/\/[^\/]+)\/sites\/(?<siteName>[^\/]+)/
+      );
 
       if (!sharepointMatch) {
         return null;
       }
 
       const { domain, siteName } = sharepointMatch.groups;
-      let baseUrl = domain + '/sites/' + siteName;      // TopSite か ChildSite かを判別
-      const childSiteMatch = cleanUrl.match(/^(?<protocol>https?:\/\/[^\/]+)\/sites\/(?<siteName>[^\/]+)\/(?<thirdLevelPath>[^\/]+)/);
+      let baseUrl = domain + '/sites/' + siteName; // TopSite か ChildSite かを判別
+      const childSiteMatch = cleanUrl.match(
+        /^(?<protocol>https?:\/\/[^\/]+)\/sites\/(?<siteName>[^\/]+)\/(?<thirdLevelPath>[^\/]+)/
+      );
 
       // SharePointの特殊パス（システムディレクトリ）を定義
       const systemPaths = [
-        'pages', 'lists', 'shared%20documents', 'shared documents', 'forms', 'sitepages',
-        'style%20library', 'style library', 'site%20assets', 'site assets', 'siteassets',
+        'pages',
+        'lists',
+        'shared%20documents',
+        'shared documents',
+        'forms',
+        'sitepages',
+        'style%20library',
+        'style library',
+        'site%20assets',
+        'site assets',
+        'siteassets',
       ];
 
       const thirdLevelPath = childSiteMatch?.groups?.thirdLevelPath || '';
 
       // システムパス（SharePointの特殊ディレクトリ）かどうかをチェック
-      const isSystemPath = thirdLevelPath && (
-        systemPaths.includes(thirdLevelPath.toLowerCase()) ||
-        systemPaths.includes(decodeURIComponent(thirdLevelPath).toLowerCase()) ||
-        thirdLevelPath.startsWith('_') // _layouts, _catalogs, _api, _vti_, etc.
-      );
+      const isSystemPath =
+        thirdLevelPath &&
+        (systemPaths.includes(thirdLevelPath.toLowerCase()) ||
+          systemPaths.includes(decodeURIComponent(thirdLevelPath).toLowerCase()) ||
+          thirdLevelPath.startsWith('_')); // _layouts, _catalogs, _api, _vti_, etc.
 
       // 実際の子サイトかどうかを判別（システムパスでない場合のみ）
       const isChildSite = childSiteMatch && thirdLevelPath && !isSystemPath;
@@ -443,7 +460,8 @@ javascript: (function () {
       }
 
       // メンテナンスモードなどの特殊URLを検出
-      const isSpecialUrl = currentUrl.includes('maintenancemode=true') ||
+      const isSpecialUrl =
+        currentUrl.includes('maintenancemode=true') ||
         currentUrl.includes('_vti_pvt') ||
         currentUrl.includes('Contents=1');
 
@@ -455,7 +473,7 @@ javascript: (function () {
         isChildSite,
         isSpecialUrl,
         displayName: isChildSite ? `${siteName}/${childSiteName}` : siteName,
-        siteType: isChildSite ? 'Child Site' : 'Top Site'
+        siteType: isChildSite ? 'Child Site' : 'Top Site',
       };
     },
 
@@ -480,7 +498,7 @@ javascript: (function () {
       }
 
       return { width, height, left, top };
-    }
+    },
   };
 
   // =============================================================================
@@ -502,7 +520,7 @@ javascript: (function () {
         this.createSiteActionCategory(siteInfo),
         this.createSiteCollectionCategory(siteInfo),
         this.createCommonActionCategory(siteInfo),
-        this.createMaintenanceCategory(siteInfo)
+        this.createMaintenanceCategory(siteInfo),
       ];
     },
 
@@ -516,50 +534,50 @@ javascript: (function () {
           url: `${siteInfo.baseUrl}/_layouts/15/viewlsts.aspx`,
           icon: '📋',
           description: 'サイト内のリストとライブラリ一覧',
-          priority: CONSTANTS.PRIORITIES.HIGH
+          priority: CONSTANTS.PRIORITIES.HIGH,
         },
         {
           title: 'ナビゲーションバー非表示',
           url: `${siteInfo.baseUrl}?env=WebView`,
           icon: '👁️',
           description: 'ナビ、ヘッダー、コマンドバーを非表示',
-          priority: CONSTANTS.PRIORITIES.HIGH
+          priority: CONSTANTS.PRIORITIES.HIGH,
         },
         {
           title: 'ナビ&ヘッダー非表示',
           url: `${siteInfo.baseUrl}?env=Embedded`,
           icon: '🖼️',
           description: 'ナビとヘッダーを非表示',
-          priority: CONSTANTS.PRIORITIES.HIGH
+          priority: CONSTANTS.PRIORITIES.HIGH,
         },
         {
           title: 'Microsoft Listsで開く',
           url: `${siteInfo.baseUrl}?env=WebViewList`,
           icon: '📄',
           description: 'リスト/ライブラリをMicrosoft Listsアプリで開く',
-          priority: CONSTANTS.PRIORITIES.HIGH
+          priority: CONSTANTS.PRIORITIES.HIGH,
         },
         {
           title: 'サイト設定',
           url: `${siteInfo.baseUrl}/_layouts/15/settings.aspx`,
           icon: '⚙️',
           description: 'サイト設定ページ',
-          priority: CONSTANTS.PRIORITIES.HIGH
+          priority: CONSTANTS.PRIORITIES.HIGH,
         },
         {
           title: '共有フォルダ',
           url: `${siteInfo.baseUrl}/Shared%20Documents/Forms/AllItems.aspx?view=3`,
           icon: '🤝',
           description: '共有されたドキュメント',
-          priority: CONSTANTS.PRIORITIES.HIGH
+          priority: CONSTANTS.PRIORITIES.HIGH,
         },
         {
           title: 'クラシックアプリストア',
           url: `${siteInfo.baseUrl}/_layouts/15/addanapp.aspx`,
           icon: '🏪',
           description: 'SharePointアプリの追加',
-          priority: CONSTANTS.PRIORITIES.HIGH
-        }
+          priority: CONSTANTS.PRIORITIES.HIGH,
+        },
       ];
 
       // 子サイトの場合は親サイトへのリンクを追加
@@ -570,7 +588,7 @@ javascript: (function () {
           url: topSiteUrl,
           icon: '⬆️',
           description: '親サイトに移動',
-          priority: CONSTANTS.PRIORITIES.HIGH
+          priority: CONSTANTS.PRIORITIES.HIGH,
         });
       }
 
@@ -578,7 +596,7 @@ javascript: (function () {
         name: 'よく使う機能',
         icon: CONSTANTS.ICONS.STAR,
         links: links,
-        collapsed: false
+        collapsed: false,
       };
     },
 
@@ -595,38 +613,38 @@ javascript: (function () {
             url: `${siteInfo.baseUrl}/_layouts/people.aspx`,
             icon: '👥',
             description: 'サイトユーザーの管理',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
           },
           {
             title: 'グループ管理',
             url: `${siteInfo.baseUrl}/_layouts/groups.aspx`,
             icon: '👫',
             description: 'SharePointグループの管理',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
           },
           {
             title: 'サイトコレクション管理者',
             url: `${siteInfo.baseUrl}/_layouts/mngsiteadmin.aspx`,
             icon: '👑',
             description: 'サイトコレクション管理者の設定',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
           },
           {
             title: '詳細権限設定',
             url: `${siteInfo.baseUrl}/_layouts/user.aspx`,
             icon: '🔐',
             description: '詳細なアクセス許可設定',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
           },
           {
             title: 'アプリ権限',
             url: `${siteInfo.baseUrl}/_layouts/15/AppPrincipals.aspx`,
             icon: '🔑',
             description: 'サイトコレクションアプリの権限',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
-          }
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
+          },
         ],
-        collapsed: false
+        collapsed: false,
       };
     },
 
@@ -643,52 +661,52 @@ javascript: (function () {
             url: `${siteInfo.baseUrl}/_layouts/mngfield.aspx`,
             icon: '📊',
             description: 'サイト列の管理',
-            priority: CONSTANTS.PRIORITIES.LOW
+            priority: CONSTANTS.PRIORITIES.LOW,
           },
           {
             title: 'サイトコンテンツタイプ',
             url: `${siteInfo.baseUrl}/_layouts/mngctype.aspx`,
             icon: '📂',
             description: 'コンテンツタイプの管理',
-            priority: CONSTANTS.PRIORITIES.LOW
+            priority: CONSTANTS.PRIORITIES.LOW,
           },
           {
             title: 'Webパーツ',
             url: `${siteInfo.baseUrl}/_catalogs/wp/Forms/AllItems.aspx`,
             icon: '🧩',
             description: 'Webパーツギャラリー',
-            priority: CONSTANTS.PRIORITIES.LOW
+            priority: CONSTANTS.PRIORITIES.LOW,
           },
           {
             title: 'リストテンプレート',
             url: `${siteInfo.baseUrl}/_catalogs/lt/Forms/AllItems.aspx`,
             icon: '📝',
             description: 'リストテンプレートギャラリー',
-            priority: CONSTANTS.PRIORITIES.LOW
+            priority: CONSTANTS.PRIORITIES.LOW,
           },
           {
             title: 'マスターページ',
             url: `${siteInfo.baseUrl}/_layouts/ChangeSiteMasterPage.aspx`,
             icon: '🎨',
             description: 'マスターページの変更',
-            priority: CONSTANTS.PRIORITIES.LOW
+            priority: CONSTANTS.PRIORITIES.LOW,
           },
           {
             title: 'テーマ',
             url: `${siteInfo.baseUrl}/_catalogs/theme/Forms/AllItems.aspx`,
             icon: '🎨',
             description: 'テーマギャラリー',
-            priority: CONSTANTS.PRIORITIES.LOW
+            priority: CONSTANTS.PRIORITIES.LOW,
           },
           {
             title: 'ソリューション',
             url: `${siteInfo.baseUrl}/_catalogs/solutions/Forms/AllItems.aspx`,
             icon: '📦',
             description: 'ソリューションギャラリー',
-            priority: CONSTANTS.PRIORITIES.LOW
-          }
+            priority: CONSTANTS.PRIORITIES.LOW,
+          },
         ],
-        collapsed: false
+        collapsed: false,
       };
     },
 
@@ -705,59 +723,59 @@ javascript: (function () {
             url: `${siteInfo.baseUrl}/_layouts/regionalsetng.aspx`,
             icon: '🌍',
             description: 'タイムゾーンと地域設定',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
           },
           {
             title: 'コンテンツと構造',
             url: `${siteInfo.baseUrl}/_Layouts/sitemanager.aspx`,
             icon: '🏗️',
             description: 'サイト構造の管理',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
           },
           {
             title: 'サイトライブラリとリスト',
             url: `${siteInfo.baseUrl}/_layouts/mcontent.aspx`,
             icon: '📚',
             description: 'すべてのリストとライブラリ',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
           },
           {
             title: 'ユーザーアラート',
             url: `${siteInfo.baseUrl}/_layouts/sitesubs.aspx`,
             icon: '🔔',
             description: 'アラート設定の管理',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
           },
           {
             title: 'RSS設定',
             url: `${siteInfo.baseUrl}/_layouts/siterss.aspx`,
             icon: '📡',
             description: 'RSS配信設定',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
           },
           {
             title: 'サイトとワークスペース',
             url: `${siteInfo.baseUrl}/_layouts/mngsubwebs.aspx`,
             icon: '🏢',
             description: 'サブサイトの管理',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
           },
           {
             title: 'ワークフロー',
             url: `${siteInfo.baseUrl}/_layouts/wrkmng.aspx`,
             icon: '🔄',
             description: 'ワークフローの管理',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
           },
           {
             title: 'タクソノミー隠しリスト',
             url: `${siteInfo.baseUrl}/Lists/TaxonomyHiddenList`,
             icon: '🏷️',
             description: 'タクソノミー管理用隠しリスト',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
-          }
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
+          },
         ],
-        collapsed: false
+        collapsed: false,
       };
     },
 
@@ -774,45 +792,45 @@ javascript: (function () {
             url: `${siteInfo.baseUrl}/_Layouts/AreaWelcomePage.aspx`,
             icon: '👋',
             description: 'ウェルカムページの設定',
-            priority: CONSTANTS.PRIORITIES.LOW
+            priority: CONSTANTS.PRIORITIES.LOW,
           },
           {
             title: 'タイトル、説明、アイコン',
             url: `${siteInfo.baseUrl}/_layouts/prjsetng.aspx`,
             icon: '📰',
             description: 'サイトの基本情報設定',
-            priority: CONSTANTS.PRIORITIES.LOW
+            priority: CONSTANTS.PRIORITIES.LOW,
           },
           {
             title: 'ページレイアウト',
             url: `${siteInfo.baseUrl}/_Layouts/ChangeSiteMasterPage.aspx`,
             icon: '📄',
             description: 'ページレイアウトの変更',
-            priority: CONSTANTS.PRIORITIES.LOW
+            priority: CONSTANTS.PRIORITIES.LOW,
           },
           {
             title: 'ツリービュー',
             url: `${siteInfo.baseUrl}/_layouts/navoptions.aspx`,
             icon: '🌳',
             description: 'ナビゲーションツリーの設定',
-            priority: CONSTANTS.PRIORITIES.LOW
+            priority: CONSTANTS.PRIORITIES.LOW,
           },
           {
             title: 'サイトテーマ',
             url: `${siteInfo.baseUrl}/_layouts/themeweb.aspx`,
             icon: '🎨',
             description: 'サイトテーマの変更',
-            priority: CONSTANTS.PRIORITIES.LOW
+            priority: CONSTANTS.PRIORITIES.LOW,
           },
           {
             title: 'ナビゲーション設定',
             url: `${siteInfo.baseUrl}/_layouts/AreaNavigationSettings.aspx`,
             icon: '🧭',
             description: 'サイトナビゲーションの設定',
-            priority: CONSTANTS.PRIORITIES.LOW
-          }
+            priority: CONSTANTS.PRIORITIES.LOW,
+          },
         ],
-        collapsed: false
+        collapsed: false,
       };
     },
 
@@ -829,31 +847,31 @@ javascript: (function () {
             url: `${siteInfo.baseUrl}/_layouts/ManageFeatures.aspx`,
             icon: '🔧',
             description: 'サイト機能の有効/無効',
-            priority: CONSTANTS.PRIORITIES.HIGH
+            priority: CONSTANTS.PRIORITIES.HIGH,
           },
           {
             title: 'サイト削除',
             url: `${siteInfo.baseUrl}/_layouts/deleteweb.aspx`,
             icon: '🗑️',
             description: 'このサイトを削除',
-            priority: CONSTANTS.PRIORITIES.HIGH
+            priority: CONSTANTS.PRIORITIES.HIGH,
           },
           {
             title: 'サイトテンプレート保存',
             url: `${siteInfo.baseUrl}/_layouts/savetmpl.aspx`,
             icon: '💾',
             description: 'サイトをテンプレートとして保存',
-            priority: CONSTANTS.PRIORITIES.HIGH
+            priority: CONSTANTS.PRIORITIES.HIGH,
           },
           {
             title: 'ごみ箱',
             url: `${siteInfo.baseUrl}/_layouts/RecycleBin.aspx`,
             icon: '🗑️',
             description: 'サイトレベルのごみ箱',
-            priority: CONSTANTS.PRIORITIES.HIGH
-          }
+            priority: CONSTANTS.PRIORITIES.HIGH,
+          },
         ],
-        collapsed: false
+        collapsed: false,
       };
     },
 
@@ -870,52 +888,52 @@ javascript: (function () {
             url: `${siteInfo.baseUrl}/_layouts/enhancedSearch.aspx`,
             icon: '🔍',
             description: '検索の詳細設定',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
           },
           {
             title: 'サイトコレクション機能',
             url: `${siteInfo.baseUrl}/_layouts/ManageFeatures.aspx?Scope=Site`,
             icon: '🔧',
             description: 'サイトコレクションレベルの機能',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
           },
           {
             title: 'サイト階層',
             url: `${siteInfo.baseUrl}/_layouts/vsubwebs.aspx`,
             icon: '🌳',
             description: 'サイト階層の表示',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
           },
           {
             title: '監査設定',
             url: `${siteInfo.baseUrl}/_layouts/AuditSettings.aspx`,
             icon: '📊',
             description: 'サイトコレクション監査設定',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
           },
           {
             title: '監査ログレポート',
             url: `${siteInfo.baseUrl}/_layouts/Reporting.aspx?Category=Auditing`,
             icon: '📈',
             description: '監査ログの表示',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
           },
           {
             title: 'ストレージ使用状況',
             url: `${siteInfo.baseUrl}/_layouts/storman.aspx`,
             icon: '💽',
             description: 'ストレージ使用量の確認',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
           },
           {
             title: 'SharePoint Designer設定',
             url: `${siteInfo.baseUrl}/_layouts/SharePointDesignerSettings.aspx`,
             icon: '🎨',
             description: 'SharePoint Designerの設定',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
-          }
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
+          },
         ],
-        collapsed: false
+        collapsed: false,
       };
     },
 
@@ -929,43 +947,43 @@ javascript: (function () {
           url: `${siteInfo.baseUrl}/_layouts/spscreate.aspx`,
           icon: '➕',
           description: '新しいアイテムの作成',
-          priority: CONSTANTS.PRIORITIES.HIGH
+          priority: CONSTANTS.PRIORITIES.HIGH,
         },
         {
           title: 'リスト表示',
           url: `${siteInfo.baseUrl}/_layouts/viewlsts.aspx`,
           icon: '📋',
           description: '全リストの表示',
-          priority: CONSTANTS.PRIORITIES.HIGH
+          priority: CONSTANTS.PRIORITIES.HIGH,
         },
         {
           title: 'サイトグループ作成',
           url: `${siteInfo.baseUrl}/_layouts/permsetup.aspx`,
           icon: '👥',
           description: 'サイトグループの作成',
-          priority: CONSTANTS.PRIORITIES.HIGH
+          priority: CONSTANTS.PRIORITIES.HIGH,
         },
         {
           title: 'クイック起動',
           url: `${siteInfo.baseUrl}/_layouts/quiklnch.aspx`,
           icon: '🚀',
           description: 'クイック起動の設定',
-          priority: CONSTANTS.PRIORITIES.HIGH
+          priority: CONSTANTS.PRIORITIES.HIGH,
         },
         {
           title: 'ワークフロー履歴',
           url: `${siteInfo.baseUrl}/lists/Workflow History`,
           icon: '📜',
           description: 'ワークフロー履歴リスト',
-          priority: CONSTANTS.PRIORITIES.HIGH
+          priority: CONSTANTS.PRIORITIES.HIGH,
         },
         {
           title: 'ユーザーアラート管理',
           url: `${siteInfo.baseUrl}/_layouts/AlertsAdmin.aspx`,
           icon: '🔔',
           description: 'ユーザーアラートの管理',
-          priority: CONSTANTS.PRIORITIES.HIGH
-        }
+          priority: CONSTANTS.PRIORITIES.HIGH,
+        },
       ];
 
       // 特殊URL用のリンクを追加
@@ -975,7 +993,7 @@ javascript: (function () {
           url: siteInfo.baseUrl,
           icon: '🔄',
           description: '通常のページビューに戻る',
-          priority: CONSTANTS.PRIORITIES.HIGH
+          priority: CONSTANTS.PRIORITIES.HIGH,
         });
       }
 
@@ -983,7 +1001,7 @@ javascript: (function () {
         name: '一般的なアクション',
         icon: CONSTANTS.ICONS.TOOLS,
         links: links,
-        collapsed: false
+        collapsed: false,
       };
     },
 
@@ -1000,26 +1018,26 @@ javascript: (function () {
             url: `${siteInfo.baseUrl}?Contents=1`,
             icon: '🔧',
             description: 'クラシックページのWebパーツメンテナンス',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
           },
           {
             title: 'Webパーツメンテナンス（モダン）',
             url: `${siteInfo.baseUrl}?maintenancemode=true`,
             icon: '🔧',
             description: 'モダンページのメンテナンスモード',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
           },
           {
             title: 'SharePointバージョン確認',
             url: `${siteInfo.baseUrl}/_vti_pvt/Service.cnf`,
             icon: 'ℹ️',
             description: 'サーバーバージョンとパッチレベル',
-            priority: CONSTANTS.PRIORITIES.MEDIUM
-          }
+            priority: CONSTANTS.PRIORITIES.MEDIUM,
+          },
         ],
-        collapsed: false
+        collapsed: false,
       };
-    }
+    },
   };
 
   // =============================================================================
@@ -1036,29 +1054,33 @@ javascript: (function () {
      */
     applyFilters: function (categories) {
       const self = this;
-      return categories.map(function (category) {
-        const filteredLinks = category.links.filter(function (link) {
-          // 優先度フィルター
-          const priorityMatch = self.currentPriorityFilter === CONSTANTS.PRIORITIES.ALL ||
-            link.priority === self.currentPriorityFilter;
+      return categories
+        .map(function (category) {
+          const filteredLinks = category.links.filter(function (link) {
+            // 優先度フィルター
+            const priorityMatch =
+              self.currentPriorityFilter === CONSTANTS.PRIORITIES.ALL ||
+              link.priority === self.currentPriorityFilter;
 
-          // テキストフィルター
-          const textMatch = self.currentTextFilter === '' ||
-            link.title.toLowerCase().includes(self.currentTextFilter.toLowerCase()) ||
-            link.description.toLowerCase().includes(self.currentTextFilter.toLowerCase());
+            // テキストフィルター
+            const textMatch =
+              self.currentTextFilter === '' ||
+              link.title.toLowerCase().includes(self.currentTextFilter.toLowerCase()) ||
+              link.description.toLowerCase().includes(self.currentTextFilter.toLowerCase());
 
-          return priorityMatch && textMatch;
+            return priorityMatch && textMatch;
+          });
+
+          return {
+            name: category.name,
+            icon: category.icon,
+            links: filteredLinks,
+            collapsed: category.collapsed,
+          };
+        })
+        .filter(function (category) {
+          return category.links.length > 0;
         });
-
-        return {
-          name: category.name,
-          icon: category.icon,
-          links: filteredLinks,
-          collapsed: category.collapsed
-        };
-      }).filter(function (category) {
-        return category.links.length > 0;
-      });
     },
 
     /**
@@ -1083,7 +1105,7 @@ javascript: (function () {
     clearFilters: function () {
       this.currentTextFilter = '';
       this.currentPriorityFilter = CONSTANTS.PRIORITIES.ALL;
-    }
+    },
   };
 
   // =============================================================================
@@ -1172,7 +1194,7 @@ javascript: (function () {
         'height: 100% !important',
         'display: flex !important',
         'flex-direction: column !important',
-        'box-sizing: border-box !important'
+        'box-sizing: border-box !important',
       ].join(';');
     },
 
@@ -1201,7 +1223,7 @@ javascript: (function () {
         `margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.LG} !important`,
         `padding-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important`,
         `border-bottom: 2px solid ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BACKGROUND.TERTIARY} !important`,
-        'cursor: move !important'
+        'cursor: move !important',
       ].join(';');
     },
 
@@ -1214,7 +1236,7 @@ javascript: (function () {
         `color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.PRIMARY} !important`,
         `font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.H3} !important`,
         `font-weight: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.WEIGHTS.SEMIBOLD} !important`,
-        'cursor: move !important'
+        'cursor: move !important',
       ].join(';');
     },
 
@@ -1225,7 +1247,7 @@ javascript: (function () {
       return [
         `font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.CAPTION} !important`,
         `color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.SECONDARY} !important`,
-        `margin-top: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.XS} !important`
+        `margin-top: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.XS} !important`,
       ].join(';');
     },
 
@@ -1245,7 +1267,7 @@ javascript: (function () {
         'justify-content: center !important',
         `font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.BODY} !important`,
         `transition: all ${SHAREPOINT_DESIGN_SYSTEM.TRANSITIONS.DEFAULT} !important`,
-        `color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.SECONDARY} !important`
+        `color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.SECONDARY} !important`,
       ].join(';');
     },
 
@@ -1270,7 +1292,7 @@ javascript: (function () {
         'display: flex !important',
         'gap: 8px !important',
         'margin-bottom: 16px !important',
-        'align-items: center !important'
+        'align-items: center !important',
       ].join(';');
     },
 
@@ -1294,7 +1316,7 @@ javascript: (function () {
         'border: 1px solid #c8c6c4 !important',
         'border-radius: 4px !important',
         'font-size: 13px !important',
-        'font-family: inherit !important'
+        'font-family: inherit !important',
       ].join(';');
     },
 
@@ -1306,20 +1328,23 @@ javascript: (function () {
         { key: CONSTANTS.PRIORITIES.ALL, label: '全て', color: CONSTANTS.PRIORITY_COLORS.all },
         { key: CONSTANTS.PRIORITIES.HIGH, label: '高', color: CONSTANTS.PRIORITY_COLORS.high },
         { key: CONSTANTS.PRIORITIES.MEDIUM, label: '中', color: CONSTANTS.PRIORITY_COLORS.medium },
-        { key: CONSTANTS.PRIORITIES.LOW, label: '低', color: CONSTANTS.PRIORITY_COLORS.low }
+        { key: CONSTANTS.PRIORITIES.LOW, label: '低', color: CONSTANTS.PRIORITY_COLORS.low },
       ];
 
-      const buttons = priorities.map(priority => {
-        const isActive = FilterManager.currentPriorityFilter === priority.key;
-        const bgColor = isActive ? priority.color : '#f3f2f1';
-        const textColor = isActive ? 'white' : '#323130'; return `
+      const buttons = priorities
+        .map(priority => {
+          const isActive = FilterManager.currentPriorityFilter === priority.key;
+          const bgColor = isActive ? priority.color : '#f3f2f1';
+          const textColor = isActive ? 'white' : '#323130';
+          return `
           <button data-action="priority-filter" data-priority="${priority.key}"
                   style="${this.getPriorityButtonStyle(bgColor, textColor, priority.color, isActive)}"
                   title="${priority.label}優先度でフィルタリング">
             ${priority.label}
           </button>
         `;
-      }).join('');
+        })
+        .join('');
 
       return `<div style="display: flex !important; gap: 4px !important;">${buttons}</div>`;
     },
@@ -1337,13 +1362,13 @@ javascript: (function () {
         'font-size: 11px !important',
         `font-weight: ${isActive ? '600' : '400'} !important`,
         'cursor: pointer !important',
-        'white-space: nowrap !important'
+        'white-space: nowrap !important',
       ].join(';');
     },
 
     /**
      * クリアボタンを生成
-     */    generateClearButton: function () {
+     */ generateClearButton: function () {
       return `
         <button data-action="clear-filters" style="${this.getClearButtonStyle()}"
                 title="全てのフィルターをクリア">
@@ -1362,7 +1387,7 @@ javascript: (function () {
         'border-radius: 4px !important',
         'padding: 4px 8px !important',
         'font-size: 11px !important',
-        'cursor: pointer !important'
+        'cursor: pointer !important',
       ].join(';');
     },
 
@@ -1386,7 +1411,7 @@ javascript: (function () {
       return [
         'flex: 1 !important',
         'overflow-y: auto !important',
-        'padding-right: 4px !important'
+        'padding-right: 4px !important',
       ].join(';');
     },
 
@@ -1397,7 +1422,7 @@ javascript: (function () {
       return [
         'display: grid !important',
         'grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important',
-        'gap: 16px !important'
+        'gap: 16px !important',
       ].join(';');
     },
 
@@ -1420,13 +1445,13 @@ javascript: (function () {
       return [
         'border: 1px solid #edebe9 !important',
         'border-radius: 6px !important',
-        'overflow: hidden !important'
+        'overflow: hidden !important',
       ].join(';');
     },
 
     /**
      * カテゴリヘッダーを生成
-     */    generateCategoryHeader: function (category, categoryIndex) {
+     */ generateCategoryHeader: function (category, categoryIndex) {
       const action = category.collapsed ? '展開' : '折りたたみ';
       return `
         <div data-action="toggle-category" data-category-index="${categoryIndex}"
@@ -1453,7 +1478,7 @@ javascript: (function () {
         'justify-content: space-between !important',
         'align-items: center !important',
         'font-weight: 600 !important',
-        'font-size: 13px !important'
+        'font-size: 13px !important',
       ].join(';');
     },
 
@@ -1476,11 +1501,11 @@ javascript: (function () {
     getCategoryContentStyle: function (collapsed) {
       return [
         `display: ${collapsed ? 'none' : 'block'} !important`,
-        'padding: 8px !important'
+        'padding: 8px !important',
       ].join(';');
-    },    /**
+    } /**
      * リンクを生成
-     */
+     */,
     generateLink: function (link) {
       const priorityColor = CONSTANTS.PRIORITY_COLORS[link.priority] || '#605e5c';
 
@@ -1508,7 +1533,7 @@ javascript: (function () {
         'color: #323130 !important',
         'border-radius: 4px !important',
         `border-left: 3px solid ${priorityColor} !important`,
-        'background: #fafafa !important'
+        'background: #fafafa !important',
       ].join(';');
     },
 
@@ -1519,7 +1544,7 @@ javascript: (function () {
       return [
         'font-weight: 500 !important',
         'font-size: 12px !important',
-        'line-height: 1.3 !important'
+        'line-height: 1.3 !important',
       ].join(';');
     },
 
@@ -1531,9 +1556,9 @@ javascript: (function () {
         'font-size: 10px !important',
         'color: #605e5c !important',
         'margin-top: 2px !important',
-        'line-height: 1.2 !important'
+        'line-height: 1.2 !important',
       ].join(';');
-    }
+    },
   };
 
   // =============================================================================
@@ -1560,7 +1585,7 @@ javascript: (function () {
         if (!this.siteInfo) {
           alert('このブックマークレットはSharePointサイトでのみ動作します。');
           return;
-        }        // カテゴリデータを作成
+        } // カテゴリデータを作成
         this.allCategories = NavigationData.createCategories(this.siteInfo);
 
         // CSSスタイルを注入
@@ -1582,7 +1607,6 @@ javascript: (function () {
 
         // パネル外クリックで閉じる
         this.setupOutsideClickHandler();
-
       } catch (error) {
         console.error('SharePoint Navigator の初期化に失敗しました:', error);
         alert('エラーが発生しました。詳細はコンソールを確認してください。');
@@ -1633,7 +1657,7 @@ javascript: (function () {
         `color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.PRIMARY} !important`,
         'overflow: hidden !important',
         'display: flex !important',
-        'flex-direction: column !important'
+        'flex-direction: column !important',
       ].join(';');
     },
 
@@ -1651,7 +1675,7 @@ javascript: (function () {
         'height: 20px !important',
         'background: linear-gradient(-45deg, transparent 40%, #c8c6c4 40%, #c8c6c4 60%, transparent 60%) !important',
         'cursor: se-resize !important',
-        'z-index: 10 !important'
+        'z-index: 10 !important',
       ].join(';');
 
       return resizeHandle;
@@ -1661,7 +1685,8 @@ javascript: (function () {
      * コンテンツを更新
      */
     updateContent: function () {
-      this.panel.innerHTML = UIGenerator.generateHTML(this.siteInfo, this.allCategories) +
+      this.panel.innerHTML =
+        UIGenerator.generateHTML(this.siteInfo, this.allCategories) +
         this.panel.querySelector('.resize-handle').outerHTML;
     },
 
@@ -1743,12 +1768,13 @@ javascript: (function () {
           // カテゴリ展開/折りたたみの場合はコンテンツのみ更新
           self.updateContentOnly();
         }
-      }; window.shimaNavClosePanel = function () {
+      };
+      window.shimaNavClosePanel = function () {
         // 外部クリックイベントリスナーを削除
         if (self.outsideClickHandler) {
           document.removeEventListener('click', self.outsideClickHandler, false);
           self.outsideClickHandler = null;
-        }        // パネル内クリックイベントリスナーを削除
+        } // パネル内クリックイベントリスナーを削除
         if (self.panelClickHandler && self.panel) {
           self.panel.removeEventListener('click', self.panelClickHandler, false);
           self.panelClickHandler = null;
@@ -1757,7 +1783,7 @@ javascript: (function () {
         // パネルを削除
         if (self.panel && self.panel.parentNode) {
           self.panel.remove();
-        }        // 注入したCSSを削除
+        } // 注入したCSSを削除
         const styleElement = document.getElementById('shima-navigator-styles');
         if (styleElement) {
           styleElement.remove();
@@ -1904,7 +1930,7 @@ javascript: (function () {
       setTimeout(function () {
         document.addEventListener('click', self.outsideClickHandler, false);
       }, 100);
-    }
+    },
   };
   // =============================================================================
   // ドラッグ&リサイズハンドラー
@@ -1965,7 +1991,11 @@ javascript: (function () {
      * ドラッグ開始
      */
     startDrag: function (e) {
-      if (!e.target.closest('button') && !e.target.closest('input') && !e.target.closest('select')) {
+      if (
+        !e.target.closest('button') &&
+        !e.target.closest('input') &&
+        !e.target.closest('select')
+      ) {
         this.initialX = e.clientX - this.xOffset;
         this.initialY = e.clientY - this.yOffset;
         this.isDragging = true;
@@ -1979,8 +2009,9 @@ javascript: (function () {
      */
     isInDragArea: function (e) {
       const rect = this.panel.getBoundingClientRect();
-      const isInHeaderArea = (e.clientY - rect.top) < 60;
-      const isHeaderElement = e.target.tagName === 'H3' ||
+      const isInHeaderArea = e.clientY - rect.top < 60;
+      const isHeaderElement =
+        e.target.tagName === 'H3' ||
         e.target.closest('h3') ||
         (e.target.closest('div') && e.target.closest('div').style.borderBottom);
 
@@ -2008,8 +2039,14 @@ javascript: (function () {
       this.xOffset = this.currentX;
       this.yOffset = this.currentY;
 
-      const newLeft = Math.max(0, Math.min(this.currentX, window.innerWidth - this.panel.offsetWidth));
-      const newTop = Math.max(0, Math.min(this.currentY, window.innerHeight - this.panel.offsetHeight));
+      const newLeft = Math.max(
+        0,
+        Math.min(this.currentX, window.innerWidth - this.panel.offsetWidth)
+      );
+      const newTop = Math.max(
+        0,
+        Math.min(this.currentY, window.innerHeight - this.panel.offsetHeight)
+      );
 
       this.panel.style.left = newLeft + 'px';
       this.panel.style.top = newTop + 'px';
@@ -2052,12 +2089,11 @@ javascript: (function () {
         e.preventDefault();
         e.stopPropagation();
       }
-    }
+    },
   };
 
   // =============================================================================
   // メイン実行
   // =============================================================================
   PanelManager.initialize();
-
 })();
