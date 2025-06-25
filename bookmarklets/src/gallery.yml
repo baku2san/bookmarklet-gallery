@@ -128,6 +128,34 @@ bookmarklets: # Utility Tools
       - 'クイックアクセス'
     enabled: true
 
+  - id: 'lists-column-formatter'
+    file: 'lists-column-formatter.js'
+    category: 'productivity'
+    title: 'Lists Column Formatter'
+    icon: '📊'
+    description: 'Microsoft Lists JSON 列書式設定支援ツール'
+    features:
+      - '既存リストから JSON 書式を取得・保存'
+      - '他のリストへの書式適用（列名変更対応）'
+      - '書式の管理・削除機能'
+      - 'クリップボード経由での書式共有'
+    enabled: true
+
+  - id: 'gmail-manager'
+    file: 'gmail-manager.js'
+    category: 'productivity'
+    title: 'Gmail Manager'
+    icon: '📬'
+    description: 'Gmail管理効率化ツール - 大量メールの整理・削除を簡単に'
+    features:
+      - 'Gmail API認証とラベル一覧取得'
+      - '送信者別メール統計・分析'
+      - '指定送信者からのメール一括削除'
+      - '送信者別自動ラベル付け'
+      - '過去メール遡及処理対応'
+      - 'バッチ処理による高速処理'
+    enabled: false
+
   # Development Tools
   - id: 'css-inspector'
     file: 'css-inspector.js'
