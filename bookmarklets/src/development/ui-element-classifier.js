@@ -24,6 +24,78 @@ javascript: (function () {
     PANEL_ID: 'shima-ui-classifier',
     Z_INDEX: 2147483647,
     HIGHLIGHT_DURATION: 3000, // ハイライト表示時間（ミリ秒）
+    DEBUG_KEY: 'ui-classifier-debug',
+    // セレクター設定
+    INTERACTIVE_SELECTORS: [
+      'a',
+      'button',
+      'input',
+      'select',
+      'textarea',
+      'label',
+      '[role="button"]',
+      '[role="link"]',
+      '[role="tab"]',
+      '[role="menuitem"]',
+      '[role="checkbox"]',
+      '[role="radio"]',
+      '[role="switch"]',
+      '[role="option"]',
+      '[role="listitem"]',
+      '[role="treeitem"]',
+      '[role="gridcell"]',
+      '[onclick]',
+      '[onmousedown]',
+      '[onmouseup]',
+      '[onkeydown]',
+      '[onkeyup]',
+      '[tabindex]:not([tabindex="-1"])',
+      '.btn',
+      '.button',
+      '.link',
+      '.toggle',
+      '.switch',
+      '.dropdown',
+      '.nav-link',
+      '.menu-item',
+      '.clickable',
+      '.interactive',
+      '.action',
+      '.control',
+      'span[onclick]',
+      'div[onclick]',
+      'li[onclick]',
+      'td[onclick]',
+      '[data-toggle]',
+      '[data-dismiss]',
+      '[data-target]',
+      '[data-action]',
+      '[triggers]',
+      '[transloco]',
+      '[placement]',
+    ].join(', '),
+    // 分類パターン
+    CLASSIFICATION_PATTERNS: {
+      STATIC_TRANSLOCO: [
+        /^status\./i, // status.* (ステータス表示)
+        /^report\./i, // report.* (レポート表示)
+        /^label\./i, // label.* (ラベル表示)
+        /^text\./i, // text.* (テキスト表示)
+        /^message\./i, // message.* (メッセージ表示)
+        /^info\./i, // info.* (情報表示)
+        /^description\./i, // description.* (説明文)
+        /^title\./i, // title.* (タイトル表示)
+        /^header\./i, // header.* (ヘッダー表示)
+        /^footer\./i, // footer.* (フッター表示)
+      ],
+      INTERACTIVE_TRANSLOCO: [
+        /^action\.(save|edit|delete|cancel|confirm|submit|click|trigger|open|close)/i,
+        /^button\.(save|edit|delete|cancel|confirm|submit|click|trigger|open|close)/i,
+        /^menu\.(open|close|toggle|click|trigger|show|hide)/i,
+      ],
+      TOGGLE_CLASSES: /(^|\s|-)(?:toggle|switch|check|radio)(?:\s|-|$)/i,
+      EXCLUDED_TOGGLE_CLASSES: /dropdown-toggle|modal-trigger|action-/i,
+    },
   };
 
   // デザインシステム
@@ -74,20 +146,10 @@ javascript: (function () {
     // 要素を検索・分類
     classifyElements() {
       // デバッグモードの設定
-      const debugMode = window.localStorage?.getItem('ui-classifier-debug') === 'true';
+      const debugMode = this._isDebugMode();
 
       // 全てのインタラクティブ要素を検索
-      const interactiveElements = document.querySelectorAll(`
-        a, button, input, select, textarea, label,
-        [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="checkbox"], [role="radio"],
-        [role="switch"], [role="option"], [role="listitem"], [role="treeitem"], [role="gridcell"],
-        [onclick], [onmousedown], [onmouseup], [onkeydown], [onkeyup],
-        [tabindex]:not([tabindex="-1"]),
-        .btn, .button, .link, .toggle, .switch, .dropdown, .nav-link, .menu-item,
-        .clickable, .interactive, .action, .control,
-        span[onclick], div[onclick], li[onclick], td[onclick],
-        [data-toggle], [data-dismiss], [data-target], [data-action], [triggers], [transloco], [placement]
-      `);
+      const interactiveElements = document.querySelectorAll(CONFIG.INTERACTIVE_SELECTORS);
 
       if (debugMode) {
         console.log(
@@ -95,7 +157,22 @@ javascript: (function () {
         );
       }
 
-      // 重複排除のためのSetを使用
+      // 重複排除して要素を処理
+      const stats = this._processElements(interactiveElements, debugMode);
+
+      // 統計情報をログ出力
+      this._logStatistics(stats, debugMode);
+
+      return this.classifications;
+    }
+
+    // デバッグモードかどうかを判定
+    _isDebugMode() {
+      return window.localStorage?.getItem(CONFIG.DEBUG_KEY) === 'true';
+    }
+
+    // 要素を処理し、重複を排除
+    _processElements(interactiveElements, debugMode) {
       const uniqueElements = new Set(interactiveElements);
       const seenElements = new Set();
       let duplicateCount = 0;
@@ -108,8 +185,7 @@ javascript: (function () {
           this.classifyElement(element);
 
           if (debugMode) {
-            const elementInfo = `${element.tagName.toLowerCase()}${element.id ? '#' + element.id : ''}${element.className ? '.' + element.className.split(' ').join('.') : ''}`;
-            console.log(`[UI Classifier Debug] 分類中: ${elementInfo}`);
+            this._logElementInfo(element);
           }
         } else {
           duplicateCount++;
@@ -119,21 +195,30 @@ javascript: (function () {
         }
       });
 
-      // 重複検出の統計
-      const totalFound = interactiveElements.length;
-      const actualProcessed = this.elements.length;
+      return {
+        totalFound: interactiveElements.length,
+        actualProcessed: this.elements.length,
+        duplicateCount,
+      };
+    }
 
-      if (debugMode || duplicateCount > 0) {
+    // 要素情報をログ出力
+    _logElementInfo(element) {
+      const elementInfo = `${element.tagName.toLowerCase()}${element.id ? '#' + element.id : ''}${element.className ? '.' + element.className.split(' ').join('.') : ''}`;
+      console.log(`[UI Classifier Debug] 分類中: ${elementInfo}`);
+    }
+
+    // 統計情報をログ出力
+    _logStatistics(stats, debugMode) {
+      if (debugMode || stats.duplicateCount > 0) {
         console.log(`[UI Classifier] 処理統計:`);
-        console.log(`  検出要素数: ${totalFound}`);
-        console.log(`  処理要素数: ${actualProcessed}`);
-        console.log(`  重複排除数: ${duplicateCount}`);
+        console.log(`  検出要素数: ${stats.totalFound}`);
+        console.log(`  処理要素数: ${stats.actualProcessed}`);
+        console.log(`  重複排除数: ${stats.duplicateCount}`);
         console.log(
           `  分類結果: ナビ${this.classifications.navigation.length}, アクション${this.classifications.action.length}, フォーム${this.classifications.form.length}, 切替${this.classifications.toggle.length}, 不明${this.classifications.unknown.length}`
         );
       }
-
-      return this.classifications;
     }
 
     // 静的なtranslocoテキストかどうかを判定
@@ -145,39 +230,30 @@ javascript: (function () {
         return false;
       }
 
-      // 一般的な静的表示用のtranslocoパターン
-      const staticPatterns = [
-        /^status\./i, // status.* (ステータス表示)
-        /^report\./i, // report.* (レポート関連)
-        /^label\./i, // label.* (ラベル表示)
-        /^text\./i, // text.* (テキスト表示)
-        /^message\./i, // message.* (メッセージ表示)
-        /^info\./i, // info.* (情報表示)
-        /^description\./i, // description.* (説明文)
-        /^title\./i, // title.* (タイトル表示)
-        /^header\./i, // header.* (ヘッダー表示)
-        /^footer\./i, // footer.* (フッター表示)
-      ];
-
-      // インタラクティブなアクション系パターン（静的ではない）
-      const interactivePatterns = [
-        /^action\.(save|edit|delete|cancel|confirm|submit|click|trigger|open|close)/i,
-        /^button\.(save|edit|delete|cancel|confirm|submit|click|trigger|open|close)/i,
-        /^menu\.(open|close|toggle|click|trigger|show|hide)/i,
-      ];
-
-      // パターンマッチによる判定
-      // まずインタラクティブパターンをチェック（優先）
-      if (interactivePatterns.some(pattern => pattern.test(translocoValue))) {
+      // インタラクティブなアクション系パターンを先にチェック（優先）
+      if (
+        CONFIG.CLASSIFICATION_PATTERNS.INTERACTIVE_TRANSLOCO.some(pattern =>
+          pattern.test(translocoValue)
+        )
+      ) {
         return false; // インタラクティブ要素
       }
 
-      if (staticPatterns.some(pattern => pattern.test(translocoValue))) {
+      // 静的表示用のtranslocoパターンをチェック
+      if (
+        CONFIG.CLASSIFICATION_PATTERNS.STATIC_TRANSLOCO.some(pattern =>
+          pattern.test(translocoValue)
+        )
+      ) {
         return true;
       }
 
-      // 要素の内容とコンテキストによる判定
-      const elementText = element.textContent?.trim() || '';
+      // 要素の内容とコンテキストによる追加判定
+      return this._isStaticByContext(element);
+    }
+
+    // コンテキストによる静的要素判定
+    _isStaticByContext(element) {
       const className = element.className || '';
 
       // 明らかに静的な表示を示すクラス名
@@ -192,170 +268,247 @@ javascript: (function () {
         element.hasAttribute('role') ||
         className.match(/clickable|button|link|action/i);
 
-      if (!hasInteractiveAttributes) {
+      return !hasInteractiveAttributes;
+    }
+
+    // 個別要素の分類
+    classifyElement(element) {
+      const elementInfo = this._extractElementInfo(element);
+
+      // 分類の優先順位に従って判定
+      if (this._isToggleElement(elementInfo)) {
+        this._addToClassification('toggle', element, '切り替え要素');
+        return;
+      }
+
+      if (this._isFormElement(elementInfo)) {
+        const isContentEditable = element.hasAttribute('contenteditable');
+        this._addToClassification(
+          'form',
+          element,
+          isContentEditable
+            ? 'フォーム要素: 編集可能コンテンツ'
+            : `フォーム要素: ${elementInfo.type || elementInfo.tagName}`,
+          isContentEditable ? 'contenteditable' : elementInfo.type || elementInfo.tagName
+        );
+        return;
+      }
+
+      // 特別なリンク要素をアクション要素として処理
+      if (this._isSpecialLinkAction(elementInfo)) {
+        this._addToClassification(
+          'action',
+          element,
+          elementInfo.role === 'button' ? 'リンクボタン' : 'アクション要素'
+        );
+        return;
+      }
+
+      if (this._isNavigationElement(elementInfo)) {
+        const navResult = this._classifyNavigationElement(elementInfo);
+        this._addToClassification('navigation', element, navResult.description, navResult.subType);
+        return;
+      }
+
+      if (this._isActionElement(elementInfo)) {
+        this._addToClassification('action', element, 'アクション要素');
+        return;
+      }
+
+      // 分類不明
+      this._addToClassification('unknown', element, '分類不明');
+    }
+
+    // 要素情報を抽出
+    _extractElementInfo(element) {
+      return {
+        element,
+        tagName: element.tagName.toLowerCase(),
+        role: element.getAttribute('role'),
+        type: element.getAttribute('type'),
+        href: element.getAttribute('href'),
+        onclick: element.getAttribute('onclick') || element.onclick,
+        className: element.className || '',
+        dataAttributes: [...element.attributes].filter(
+          attr =>
+            attr.name.startsWith('data-') ||
+            attr.name.match(/^(transloco|containerclass|triggers|placement)$/)
+        ),
+      };
+    }
+
+    // 分類結果を追加
+    _addToClassification(type, element, description, subType = null) {
+      const classificationItem = {
+        element,
+        type,
+        description,
+      };
+
+      if (subType) {
+        classificationItem.subType = subType;
+      }
+
+      this.classifications[type].push(classificationItem);
+    }
+
+    // 切り替え要素の判定
+    _isToggleElement({ tagName, type, role, className, dataAttributes }) {
+      // 基本的な切り替え要素
+      if (
+        (type === 'checkbox' && tagName === 'input') ||
+        (type === 'radio' && tagName === 'input') ||
+        role === 'switch' ||
+        role === 'checkbox' ||
+        role === 'radio'
+      ) {
+        return true;
+      }
+
+      // クラス名による判定（除外パターンをチェック）
+      if (
+        className.match(CONFIG.CLASSIFICATION_PATTERNS.TOGGLE_CLASSES) &&
+        !className.match(CONFIG.CLASSIFICATION_PATTERNS.EXCLUDED_TOGGLE_CLASSES)
+      ) {
+        return true;
+      }
+
+      // データ属性による判定
+      return dataAttributes.some(
+        attr =>
+          attr.name.match(/switch/i) ||
+          (attr.name === 'data-toggle' &&
+            attr.value &&
+            ['switch', 'checkbox', 'radio'].includes(attr.value.toLowerCase()))
+      );
+    }
+
+    // フォーム要素の判定
+    _isFormElement({ tagName, type, element }) {
+      // contenteditable要素
+      if (
+        element.hasAttribute('contenteditable') ||
+        element.getAttribute('contenteditable') === 'true'
+      ) {
+        return true;
+      }
+
+      // 基本的なフォーム要素（submit/button/reset typeのinputは除外）
+      return (
+        ['input', 'select', 'textarea'].includes(tagName) &&
+        !['submit', 'button', 'reset'].includes(type)
+      );
+    }
+
+    // 特別なリンク要素のアクション判定
+    _isSpecialLinkAction({ tagName, role, href }) {
+      if (tagName !== 'a') return false;
+
+      // role="button"が設定されているリンクはアクション要素
+      if (role === 'button') {
+        return true;
+      }
+
+      // href="#"はアクション要素として扱う
+      if (href === '#') {
         return true;
       }
 
       return false;
     }
 
-    // 個別要素の分類
-    classifyElement(element) {
-      const tagName = element.tagName.toLowerCase();
-      const role = element.getAttribute('role');
-      const type = element.getAttribute('type');
-      const href = element.getAttribute('href');
-      const onclick = element.getAttribute('onclick') || element.onclick;
-      const className = element.className || '';
-      const dataAttributes = [...element.attributes].filter(
-        attr =>
-          attr.name.startsWith('data-') ||
-          attr.name.match(/^(transloco|containerclass|triggers|placement)$/)
-      );
-
-      // 1. 切り替え要素（最優先 - フォーム要素より先に判定）
-      if (
-        (type === 'checkbox' && tagName === 'input') ||
-        (type === 'radio' && tagName === 'input') ||
-        role === 'switch' ||
-        role === 'checkbox' ||
-        role === 'radio' ||
-        (className.match(/(^|\s|-)(?:toggle|switch|check|radio)(?:\s|-|$)/i) &&
-          !className.match(/dropdown-toggle|modal-trigger|action-/i)) ||
-        dataAttributes.some(
-          attr =>
-            attr.name.match(/switch/i) ||
-            (attr.name === 'data-toggle' &&
-              attr.value &&
-              ['switch', 'checkbox', 'radio'].includes(attr.value.toLowerCase()))
-        )
-      ) {
-        this.classifications.toggle.push({
-          element,
-          type: 'toggle',
-          description: '切り替え要素',
-        });
-        return;
-      }
-
-      // 2. フォーム要素（ただし、submit/button/reset type の input は除外）
-      if (
-        (['input', 'select', 'textarea'].includes(tagName) &&
-          !['submit', 'button', 'reset'].includes(type)) ||
-        element.hasAttribute('contenteditable') ||
-        element.getAttribute('contenteditable') === 'true'
-      ) {
-        const isContentEditable = element.hasAttribute('contenteditable');
-        this.classifications.form.push({
-          element,
-          type: 'form',
-          subType: isContentEditable ? 'contenteditable' : type || tagName,
-          description: isContentEditable
-            ? 'フォーム要素: 編集可能コンテンツ'
-            : `フォーム要素: ${type || tagName}`,
-        });
-        return;
-      }
-
-      // 3. ナビゲーション要素（リンク）
+    // ナビゲーション要素の判定
+    _isNavigationElement({ tagName, role, href, className, element }) {
+      // リンク要素
       if (tagName === 'a' && href && href !== '') {
-        const isExternal = href.startsWith('http') || href.startsWith('//');
-        const isAnchor = href.startsWith('#');
-        const isSpecial = href.startsWith('mailto:') || href.startsWith('tel:');
-
-        // role="button"が設定されているリンクはアクション要素として扱う
-        if (role === 'button') {
-          this.classifications.action.push({
-            element,
-            type: 'action',
-            description: 'リンクボタン',
-          });
-          return;
-        }
-
-        // href="#" は通常アクション要素として扱われるべき
-        if (href === '#') {
-          this.classifications.action.push({
-            element,
-            type: 'action',
-            description: 'アクション要素',
-          });
-          return;
-        }
-
-        this.classifications.navigation.push({
-          element,
-          type: 'navigation',
-          subType: isExternal
-            ? 'external'
-            : isAnchor
-              ? 'anchor'
-              : isSpecial
-                ? 'special'
-                : 'internal',
-          description: isExternal
-            ? '外部リンク'
-            : isAnchor
-              ? 'アンカーリンク'
-              : isSpecial
-                ? '特殊リンク'
-                : '内部リンク',
-        });
-        return;
+        return true;
       }
 
-      // 4. ナビゲーション要素（role や親要素での判定）
-      if (
+      // role属性や親要素による判定
+      return (
         role === 'link' ||
         element.closest('nav') ||
         element.closest('[role="navigation"]') ||
         className.match(/nav|menu|breadcrumb|tab/i) ||
         (tagName === 'li' && className.match(/tab|nav/i)) ||
-        (tagName === 'li' && element.hasAttribute('tabindex')) // tabindexを持つli要素（タブナビゲーション）
-      ) {
-        this.classifications.navigation.push({
-          element,
-          type: 'navigation',
-          description: 'ナビゲーション要素',
-        });
-        return;
+        (tagName === 'li' && element.hasAttribute('tabindex'))
+      );
+    }
+
+    // ナビゲーション要素の詳細分類
+    _classifyNavigationElement({ tagName, href }) {
+      // リンク要素の場合
+      if (tagName === 'a' && href && href !== '') {
+        const isExternal = href.startsWith('http') || href.startsWith('//');
+        const isAnchor = href.startsWith('#');
+        const isSpecial = href.startsWith('mailto:') || href.startsWith('tel:');
+
+        const subType = isExternal
+          ? 'external'
+          : isAnchor
+            ? 'anchor'
+            : isSpecial
+              ? 'special'
+              : 'internal';
+
+        const description = isExternal
+          ? '外部リンク'
+          : isAnchor
+            ? 'アンカーリンク'
+            : isSpecial
+              ? '特殊リンク'
+              : '内部リンク';
+
+        return { subType, description };
       }
 
-      // 5. アクション要素
+      // その他のナビゲーション要素
+      return { description: 'ナビゲーション要素' };
+    }
+
+    // アクション要素の判定
+    _isActionElement({ tagName, role, onclick, className, dataAttributes, href, element }) {
+      // 基本的なアクション要素
       if (
         tagName === 'button' ||
         role === 'button' ||
         role === 'tab' ||
         role === 'menuitem' ||
         onclick ||
-        className.match(/btn|button|action|dropdown-toggle|modal-trigger/i) ||
-        dataAttributes.some(
-          attr =>
-            attr.name.match(/action|target|trigger|popover|placement/i) ||
-            (attr.name === 'transloco' &&
-              ['a', 'button', 'div', 'span'].includes(tagName) &&
-              !className.match(/control-label|form-control-static|label|text-only|display-only/i) &&
-              !this.isStaticTranslocoText(attr.value, element))
-        ) ||
-        tagName === 'summary' ||
-        (tagName === 'th' && onclick) ||
-        (tagName === 'td' && onclick) ||
-        (tagName === 'a' && (!href || href === '' || href === '#')) // hrefがない、空、またはアンカーのみのaタグ
+        tagName === 'summary'
       ) {
-        this.classifications.action.push({
-          element,
-          type: 'action',
-          description: 'アクション要素',
-        });
-        return;
+        return true;
       }
 
-      // 6. 分類不明
-      this.classifications.unknown.push({
-        element,
-        type: 'unknown',
-        description: '分類不明',
-      });
+      // テーブル要素でクリック可能
+      if ((tagName === 'th' || tagName === 'td') && onclick) {
+        return true;
+      }
+
+      // hrefがない、空、またはアンカーのみのaタグ
+      if (tagName === 'a' && (!href || href === '' || href === '#')) {
+        return true;
+      }
+
+      // role="button"が設定されているリンク
+      if (tagName === 'a' && role === 'button') {
+        return true;
+      }
+
+      // クラス名による判定
+      if (className.match(/btn|button|action|dropdown-toggle|modal-trigger/i)) {
+        return true;
+      }
+
+      // データ属性による判定
+      return dataAttributes.some(
+        attr =>
+          attr.name.match(/action|target|trigger|popover|placement/i) ||
+          (attr.name === 'transloco' &&
+            ['a', 'button', 'div', 'span'].includes(tagName) &&
+            !className.match(/control-label|form-control-static|label|text-only|display-only/i) &&
+            !this.isStaticTranslocoText(attr.value, element))
+      );
     }
 
     // 要素のハイライト表示
@@ -539,53 +692,91 @@ javascript: (function () {
 
       return `
         <div style="height: 100% !important; display: flex !important; flex-direction: column !important;">
-          <!-- ドラッグ可能なヘッダー -->
-          <div id="classifier-header" style="padding: 20px 20px 15px 20px !important; border-bottom: 1px solid #eee !important; cursor: move !important; flex-shrink: 0 !important; user-select: none !important;">
-            <div style="display: flex !important; justify-content: space-between !important; align-items: center !important;">
-              <h3 style="margin: 0 !important; color: ${DESIGN_SYSTEM.COLORS.PRIMARY} !important; font-size: 18px !important; font-weight: bold !important;">
-                🎯 UI Element Classifier
-              </h3>
-              <div style="display: flex !important; gap: 8px !important; align-items: center !important;">
-                <button id="classifier-minimize" style="background: ${DESIGN_SYSTEM.COLORS.WARNING} !important; color: white !important; border: none !important; border-radius: 4px !important; padding: 4px 8px !important; cursor: pointer !important; font-size: 12px !important;" title="最小化">−</button>
-                <button id="classifier-close" style="background: ${DESIGN_SYSTEM.COLORS.DANGER} !important; color: white !important; border: none !important; border-radius: 4px !important; padding: 4px 8px !important; cursor: pointer !important; font-size: 12px !important;" title="閉じる">✕</button>
-              </div>
+          ${this._generatePanelHeader()}
+          ${this._generatePanelBody(totalElements, stats, classifications)}
+        </div>
+      `;
+    }
+
+    // パネルヘッダーを生成
+    _generatePanelHeader() {
+      return `
+        <!-- ドラッグ可能なヘッダー -->
+        <div id="classifier-header" style="padding: 20px 20px 15px 20px !important; border-bottom: 1px solid #eee !important; cursor: move !important; flex-shrink: 0 !important; user-select: none !important;">
+          <div style="display: flex !important; justify-content: space-between !important; align-items: center !important;">
+            <h3 style="margin: 0 !important; color: ${DESIGN_SYSTEM.COLORS.PRIMARY} !important; font-size: 18px !important; font-weight: bold !important;">
+              🎯 UI Element Classifier
+            </h3>
+            <div style="display: flex !important; gap: 8px !important; align-items: center !important;">
+              <button id="classifier-minimize" style="background: ${DESIGN_SYSTEM.COLORS.WARNING} !important; color: white !important; border: none !important; border-radius: 4px !important; padding: 4px 8px !important; cursor: pointer !important; font-size: 12px !important;" title="最小化">−</button>
+              <button id="classifier-close" style="background: ${DESIGN_SYSTEM.COLORS.DANGER} !important; color: white !important; border: none !important; border-radius: 4px !important; padding: 4px 8px !important; cursor: pointer !important; font-size: 12px !important;" title="閉じる">✕</button>
             </div>
           </div>
+        </div>
+      `;
+    }
 
-          <!-- スクロール可能なコンテンツエリア -->
-          <div id="classifier-content" style="flex: 1 !important; overflow-y: auto !important; padding: 20px !important;">
-            <!-- 統計情報 -->
-            <div style="margin-bottom: 20px !important; padding: 15px !important; background: ${DESIGN_SYSTEM.COLORS.LIGHT} !important; border-radius: 8px !important;">
-              <h4 style="margin: 0 0 10px 0 !important; color: ${DESIGN_SYSTEM.COLORS.DARK} !important; font-size: 16px !important;">📊 検出統計</h4>
-              <div style="font-size: 13px !important;">
-                <div><strong>総要素数:</strong> ${totalElements}</div>
-              </div>
-            </div>
+    // パネルボディを生成
+    _generatePanelBody(totalElements, stats, classifications) {
+      return `
+        <!-- スクロール可能なコンテンツエリア -->
+        <div id="classifier-content" style="flex: 1 !important; overflow-y: auto !important; padding: 20px !important;">
+          ${this._generateStatisticsSection(totalElements)}
+          ${this._generateClassificationSection(stats, classifications)}
+          ${this._generateActionButtonsSection()}
+          ${this._generateLegendSection()}
+        </div>
+      `;
+    }
 
-            <!-- 要素タイプ別統計 -->
-            <div style="margin-bottom: 20px !important;">
-              <h4 style="margin: 0 0 15px 0 !important; color: ${DESIGN_SYSTEM.COLORS.DARK} !important; font-size: 16px !important;">🏷️ 分類結果</h4>
-              ${this.generateTypesList(stats, classifications)}
-            </div>
-
-            <!-- アクションボタン -->
-            <div style="margin-bottom: 20px !important; padding-top: 15px !important; border-top: 1px solid #eee !important;">
-              <div style="display: flex !important; gap: 10px !important; flex-wrap: wrap !important;">
-                <button id="toggle-highlight" style="background: ${DESIGN_SYSTEM.COLORS.SUCCESS} !important; color: white !important; border: none !important; border-radius: 6px !important; padding: 8px 12px !important; cursor: pointer !important; font-size: 12px !important; flex: 1 !important;">
-                  💡 ハイライト表示
-                </button>
-                <button id="export-results" style="background: ${DESIGN_SYSTEM.COLORS.INFO} !important; color: white !important; border: none !important; border-radius: 6px !important; padding: 8px 12px !important; cursor: pointer !important; font-size: 12px !important; flex: 1 !important;">
-                  📋 結果コピー
-                </button>
-              </div>
-            </div>
-
-            <!-- 凡例 -->
-            <div style="padding: 15px !important; background: #f8f9fa !important; border-radius: 8px !important; font-size: 12px !important;">
-              <h5 style="margin: 0 0 10px 0 !important; color: ${DESIGN_SYSTEM.COLORS.DARK} !important;">🎨 カラーコード凡例</h5>
-              ${this.generateLegend()}
-            </div>
+    // 統計情報セクションを生成
+    _generateStatisticsSection(totalElements) {
+      return `
+        <!-- 統計情報 -->
+        <div style="margin-bottom: 20px !important; padding: 15px !important; background: ${DESIGN_SYSTEM.COLORS.LIGHT} !important; border-radius: 8px !important;">
+          <h4 style="margin: 0 0 10px 0 !important; color: ${DESIGN_SYSTEM.COLORS.DARK} !important; font-size: 16px !important;">📊 検出統計</h4>
+          <div style="font-size: 13px !important;">
+            <div><strong>総要素数:</strong> ${totalElements}</div>
           </div>
+        </div>
+      `;
+    }
+
+    // 分類結果セクションを生成
+    _generateClassificationSection(stats, classifications) {
+      return `
+        <!-- 要素タイプ別統計 -->
+        <div style="margin-bottom: 20px !important;">
+          <h4 style="margin: 0 0 15px 0 !important; color: ${DESIGN_SYSTEM.COLORS.DARK} !important; font-size: 16px !important;">🏷️ 分類結果</h4>
+          ${this.generateTypesList(stats, classifications)}
+        </div>
+      `;
+    }
+
+    // アクションボタンセクションを生成
+    _generateActionButtonsSection() {
+      return `
+        <!-- アクションボタン -->
+        <div style="margin-bottom: 20px !important; padding-top: 15px !important; border-top: 1px solid #eee !important;">
+          <div style="display: flex !important; gap: 10px !important; flex-wrap: wrap !important;">
+            <button id="toggle-highlight" style="background: ${DESIGN_SYSTEM.COLORS.SUCCESS} !important; color: white !important; border: none !important; border-radius: 6px !important; padding: 8px 12px !important; cursor: pointer !important; font-size: 12px !important; flex: 1 !important;">
+              💡 ハイライト表示
+            </button>
+            <button id="export-results" style="background: ${DESIGN_SYSTEM.COLORS.INFO} !important; color: white !important; border: none !important; border-radius: 6px !important; padding: 8px 12px !important; cursor: pointer !important; font-size: 12px !important; flex: 1 !important;">
+              📋 結果コピー
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    // 凡例セクションを生成
+    _generateLegendSection() {
+      return `
+        <!-- 凡例 -->
+        <div style="padding: 15px !important; background: #f8f9fa !important; border-radius: 8px !important; font-size: 12px !important;">
+          <h5 style="margin: 0 0 10px 0 !important; color: ${DESIGN_SYSTEM.COLORS.DARK} !important;">🎨 カラーコード凡例</h5>
+          ${this.generateLegend()}
         </div>
       `;
     }
