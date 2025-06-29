@@ -631,6 +631,9 @@ javascript: (function () {
       this.isResizing = false;
       this.dragOffset = { x: 0, y: 0 };
       this.resizeOffset = { x: 0, y: 0 };
+      this.currentUrl = window.location.href; // 現在のURL
+      this.urlCheckInterval = null; // URL監視用インターバル
+      this.isAutoRefreshEnabled = true; // 自動再分析の有効/無効
     }
 
     // メインパネルを作成
@@ -642,6 +645,7 @@ javascript: (function () {
         if (this.isHighlighted) {
           this.classifier.removeHighlights();
         }
+        this.stopUrlMonitoring(); // URL監視を停止
         return;
       }
 
@@ -656,6 +660,7 @@ javascript: (function () {
       this.panel.innerHTML = this.generatePanelContent(stats, classifications);
       this.attachEventListeners();
       this.setupWindowResize();
+      this.startUrlMonitoring(); // URL監視を開始
 
       document.body.appendChild(this.panel);
     }
@@ -758,12 +763,20 @@ javascript: (function () {
       return `
         <!-- アクションボタン -->
         <div style="margin-bottom: 20px !important; padding-top: 15px !important; border-top: 1px solid #eee !important;">
-          <div style="display: flex !important; gap: 10px !important; flex-wrap: wrap !important;">
+          <div style="display: flex !important; gap: 8px !important; flex-wrap: wrap !important; margin-bottom: 10px !important;">
             <button id="toggle-highlight" style="background: ${DESIGN_SYSTEM.COLORS.SUCCESS} !important; color: white !important; border: none !important; border-radius: 6px !important; padding: 8px 12px !important; cursor: pointer !important; font-size: 12px !important; flex: 1 !important;">
               💡 ハイライト表示
             </button>
             <button id="export-results" style="background: ${DESIGN_SYSTEM.COLORS.INFO} !important; color: white !important; border: none !important; border-radius: 6px !important; padding: 8px 12px !important; cursor: pointer !important; font-size: 12px !important; flex: 1 !important;">
               📋 結果コピー
+            </button>
+          </div>
+          <div style="display: flex !important; gap: 8px !important; flex-wrap: wrap !important;">
+            <button id="refresh-analysis" style="background: ${DESIGN_SYSTEM.COLORS.PRIMARY} !important; color: white !important; border: none !important; border-radius: 6px !important; padding: 8px 12px !important; cursor: pointer !important; font-size: 12px !important; flex: 1 !important;" title="手動で再分析を実行">
+              🔄 再分析
+            </button>
+            <button id="toggle-auto-refresh" style="background: ${DESIGN_SYSTEM.COLORS.SECONDARY} !important; color: white !important; border: none !important; border-radius: 6px !important; padding: 8px 12px !important; cursor: pointer !important; font-size: 12px !important; flex: 1 !important;" title="ページ遷移時の自動再分析のオン/オフ">
+              🔁 自動更新: ON
             </button>
           </div>
         </div>
@@ -831,6 +844,7 @@ javascript: (function () {
     attachEventListeners() {
       // 閉じるボタン
       this.panel.querySelector('#classifier-close').addEventListener('click', () => {
+        this.stopUrlMonitoring(); // URL監視を停止
         this.panel.remove();
         if (this.isHighlighted) {
           this.classifier.removeHighlights();
@@ -880,6 +894,16 @@ javascript: (function () {
       // 結果エクスポートボタン
       this.panel.querySelector('#export-results').addEventListener('click', () => {
         this.exportResults();
+      });
+
+      // 再分析ボタン
+      this.panel.querySelector('#refresh-analysis').addEventListener('click', () => {
+        this.refreshAnalysis();
+      });
+
+      // 自動更新トグルボタン
+      this.panel.querySelector('#toggle-auto-refresh').addEventListener('click', () => {
+        this.toggleAutoRefresh();
       });
 
       // 分類項目のクリックイベント
@@ -1158,6 +1182,233 @@ RECOMMENDATIONS
           }
         }, 300);
       }, 3000);
+    }
+
+    /**
+     * URL監視を開始
+     * ページ遷移やSPA内での遷移を検出して自動再分析
+     */
+    startUrlMonitoring() {
+      // 既存の監視を停止
+      this.stopUrlMonitoring();
+
+      if (!this.isAutoRefreshEnabled) return;
+
+      // 定期的にURLをチェック（SPAでのURL変更を検出）
+      this.urlCheckInterval = setInterval(() => {
+        const newUrl = window.location.href;
+        if (newUrl !== this.currentUrl) {
+          this.currentUrl = newUrl;
+          this.onUrlChange();
+        }
+      }, 1000); // 1秒間隔でチェック
+
+      // Popstate イベント（ブラウザの戻る/進むボタン）
+      window.addEventListener('popstate', this.onUrlChange.bind(this));
+
+      // History API の監視（pushState/replaceState）
+      this.monitorHistoryChanges();
+    }
+
+    /**
+     * URL監視を停止
+     */
+    stopUrlMonitoring() {
+      if (this.urlCheckInterval) {
+        clearInterval(this.urlCheckInterval);
+        this.urlCheckInterval = null;
+      }
+      window.removeEventListener('popstate', this.onUrlChange.bind(this));
+    }
+
+    /**
+     * History API の変更を監視
+     */
+    monitorHistoryChanges() {
+      const originalPushState = history.pushState;
+      const originalReplaceState = history.replaceState;
+
+      history.pushState = (...args) => {
+        originalPushState.apply(history, args);
+        setTimeout(() => this.onUrlChange(), 100); // 少し遅延させてDOM更新を待つ
+      };
+
+      history.replaceState = (...args) => {
+        originalReplaceState.apply(history, args);
+        setTimeout(() => this.onUrlChange(), 100);
+      };
+    }
+
+    /**
+     * URL変更時の処理
+     */
+    onUrlChange() {
+      if (!this.isAutoRefreshEnabled || !this.panel) return;
+
+      this.showNotification('🔄 ページ遷移を検出しました。分析を更新中...', 'info');
+
+      // 少し遅延させてDOM更新を待つ
+      setTimeout(() => {
+        this.refreshAnalysis(false); // 通知なしで実行
+      }, 500);
+    }
+
+    /**
+     * 分析をリフレッシュ
+     */
+    refreshAnalysis(showNotification = true) {
+      if (!this.panel) return;
+
+      try {
+        // 現在のハイライトを削除
+        if (this.isHighlighted) {
+          this.classifier.removeHighlights();
+        }
+
+        // 分類器をリセット
+        this.classifier = new UIElementClassifier();
+
+        // 新しい分析を実行
+        const classifications = this.classifier.classifyElements();
+        const stats = this.classifier.getStatistics();
+
+        // パネルのコンテンツを更新
+        this.updatePanelContent(stats, classifications);
+
+        // 状態をリセット
+        this.isHighlighted = false;
+        this.currentHighlightType = null;
+
+        if (showNotification) {
+          this.showNotification('✅ 分析が完了しました', 'success');
+        }
+      } catch (error) {
+        console.error('[UI Classifier] 再分析エラー:', error);
+        if (showNotification) {
+          this.showNotification('❌ 分析の更新に失敗しました', 'error');
+        }
+      }
+    }
+
+    /**
+     * パネルコンテンツを更新
+     */
+    updatePanelContent(stats, classifications) {
+      const totalElements = Object.values(stats).reduce((sum, count) => sum + count, 0);
+
+      // 統計情報セクションを更新
+      const statsSection = this.panel.querySelector('#classifier-content');
+      if (statsSection) {
+        statsSection.innerHTML = `
+          ${this._generateStatisticsSection(totalElements)}
+          ${this._generateClassificationSection(stats, classifications)}
+          ${this._generateActionButtonsSection()}
+          ${this._generateLegendSection()}
+        `;
+
+        // イベントリスナーを再設定
+        this.reattachContentEventListeners();
+      }
+    }
+
+    /**
+     * コンテンツ部分のイベントリスナーを再設定
+     */
+    reattachContentEventListeners() {
+      // ハイライト切り替えボタン
+      const highlightBtn = this.panel.querySelector('#toggle-highlight');
+      if (highlightBtn) {
+        highlightBtn.addEventListener('click', () => {
+          if (this.isHighlighted) {
+            this.classifier.removeHighlights();
+            highlightBtn.textContent = '💡 ハイライト表示';
+            highlightBtn.style.background = DESIGN_SYSTEM.COLORS.SUCCESS;
+            this.isHighlighted = false;
+            this.currentHighlightType = null;
+            this.resetTypeItemSelection();
+          } else {
+            this.classifier.highlightElements();
+            highlightBtn.textContent = '🚫 ハイライト解除';
+            highlightBtn.style.background = DESIGN_SYSTEM.COLORS.WARNING;
+            this.isHighlighted = true;
+            this.currentHighlightType = 'all';
+
+            setTimeout(() => {
+              if (this.isHighlighted && this.panel && this.currentHighlightType === 'all') {
+                this.classifier.removeHighlights();
+                highlightBtn.textContent = '💡 ハイライト表示';
+                highlightBtn.style.background = DESIGN_SYSTEM.COLORS.SUCCESS;
+                this.isHighlighted = false;
+                this.currentHighlightType = null;
+              }
+            }, CONFIG.HIGHLIGHT_DURATION);
+          }
+        });
+      }
+
+      // 結果エクスポートボタン
+      const exportBtn = this.panel.querySelector('#export-results');
+      if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+          this.exportResults();
+        });
+      }
+
+      // 再分析ボタン
+      const refreshBtn = this.panel.querySelector('#refresh-analysis');
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+          this.refreshAnalysis();
+        });
+      }
+
+      // 自動更新トグルボタン
+      const autoRefreshBtn = this.panel.querySelector('#toggle-auto-refresh');
+      if (autoRefreshBtn) {
+        autoRefreshBtn.addEventListener('click', () => {
+          this.toggleAutoRefresh();
+        });
+        // ボタンの表示を現在の状態に合わせて更新
+        this.updateAutoRefreshButtonDisplay();
+      }
+
+      // 分類項目のクリックイベント
+      this.setupTypeItemClickEvents();
+    }
+
+    /**
+     * 自動更新機能のオン/オフ切り替え
+     */
+    toggleAutoRefresh() {
+      this.isAutoRefreshEnabled = !this.isAutoRefreshEnabled;
+
+      if (this.isAutoRefreshEnabled) {
+        this.startUrlMonitoring();
+        this.showNotification('🔁 自動更新が有効になりました', 'success');
+      } else {
+        this.stopUrlMonitoring();
+        this.showNotification('⏹️ 自動更新が無効になりました', 'info');
+      }
+
+      this.updateAutoRefreshButtonDisplay();
+    }
+
+    /**
+     * 自動更新ボタンの表示を更新
+     */
+    updateAutoRefreshButtonDisplay() {
+      const autoRefreshBtn = this.panel.querySelector('#toggle-auto-refresh');
+      if (autoRefreshBtn) {
+        if (this.isAutoRefreshEnabled) {
+          autoRefreshBtn.textContent = '🔁 自動更新: ON';
+          autoRefreshBtn.style.background = DESIGN_SYSTEM.COLORS.SUCCESS;
+          autoRefreshBtn.title = 'ページ遷移時の自動再分析を無効にする';
+        } else {
+          autoRefreshBtn.textContent = '⏹️ 自動更新: OFF';
+          autoRefreshBtn.style.background = DESIGN_SYSTEM.COLORS.SECONDARY;
+          autoRefreshBtn.title = 'ページ遷移時の自動再分析を有効にする';
+        }
+      }
     }
   }
 
