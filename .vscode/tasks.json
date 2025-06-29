@@ -303,10 +303,29 @@
       "problemMatcher": []
     },
     {
-      "label": "🔍 フォーマットチェック",
+      "label": "🧪 UI分類ロジックテスト",
       "type": "shell",
       "command": "npm",
-      "args": ["run", "code:check"],
+      "args": ["run", "test:ui-classifier"],
+      "group": "test",
+      "options": {
+        "cwd": "${workspaceFolder}/bookmarklets"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "🔧 ロジック抽出",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "extract-logic"],
       "group": "build",
       "options": {
         "cwd": "${workspaceFolder}/bookmarklets"
@@ -322,10 +341,10 @@
       "problemMatcher": []
     },
     {
-      "label": "🧹 Prettier フォーマット",
+      "label": "🔧 ロジック強制抽出",
       "type": "shell",
       "command": "npm",
-      "args": ["run", "format"],
+      "args": ["run", "extract-logic:force"],
       "group": "build",
       "options": {
         "cwd": "${workspaceFolder}/bookmarklets"
@@ -341,11 +360,61 @@
       "problemMatcher": []
     },
     {
-      "label": "🔧 ESLint 修正",
+      "label": "🔍 ロジック抽出チェック",
       "type": "shell",
       "command": "npm",
-      "args": ["run", "lint"],
+      "args": ["run", "extract-logic:check"],
       "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}/bookmarklets"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "🔍 UI分類テスト（ウォッチ）",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "test:watch"],
+      "group": "test",
+      "options": {
+        "cwd": "${workspaceFolder}/bookmarklets"
+      },
+      "isBackground": true,
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": {
+        "owner": "nodemon",
+        "pattern": {
+          "regexp": "^(.*)$",
+          "line": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\[nodemon\\] starting",
+          "endsPattern": "^\\[nodemon\\] clean exit"
+        }
+      }
+    },
+    {
+      "label": "🔄 全テスト実行",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "test:all"],
+      "group": "test",
       "options": {
         "cwd": "${workspaceFolder}/bookmarklets"
       },

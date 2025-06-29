@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UI Element Classifier - テスト環境</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1fr 400px;
+        gap: 20px;
+      }
+      .test-area {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .classifier-panel {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        position: sticky;
+        top: 20px;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+      .section {
+        margin-bottom: 30px;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .section h3 {
+        margin-top: 0;
+        color: #333;
+      }
+      .test-elements {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+      button,
+      input,
+      select,
+      textarea {
+        margin: 5px;
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      .custom-button {
+        background: #007bff;
+        color: white;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .menu {
+        display: flex;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        background: #333;
+        border-radius: 4px;
+      }
+      .menu li {
+        margin: 0;
+      }
+      .menu a {
+        display: block;
+        padding: 10px 15px;
+        color: white;
+        text-decoration: none;
+      }
+      .menu a:hover {
+        background: #555;
+      }
+      .card {
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 15px;
+        margin: 10px 0;
+      }
+      .highlight {
+        transition: all 0.3s ease;
+      }
+      .results {
+        margin-top: 20px;
+      }
+      .type-result {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+        border-left: 4px solid;
+      }
+      .navigation {
+        border-left-color: #6f42c1;
+        background: #6f42c110;
+      }
+      .action {
+        border-left-color: #ff6b35;
+        background: #ff6b3510;
+      }
+      .form {
+        border-left-color: #28a745;
+        background: #28a74510;
+      }
+      .toggle {
+        border-left-color: #ffc107;
+        background: #ffc10710;
+      }
+      .unknown {
+        border-left-color: #dc3545;
+        background: #dc354510;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="test-area">
+        <h1>🧪 UI Element Classifier テスト環境</h1>
+        <p>この環境では、様々なUI要素を配置して分類ロジックをテストできます。</p>
+
+        <!-- ナビゲーション要素のテスト -->
+        <div class="section">
+          <h3>🧭 ナビゲーション要素</h3>
+          <div class="test-elements">
+            <a href="#section1">セクション1へ</a>
+            <a href="/page2">内部ページ</a>
+            <a href="https://example.com">外部サイト</a>
+            <a href="mailto:test@example.com">メール送信</a>
+            <a href="tel:03-1234-5678">電話</a>
+          </div>
+          <ul class="menu">
+            <li><a href="#home">ホーム</a></li>
+            <li><a href="#about">会社概要</a></li>
+            <li><a href="#contact">お問い合わせ</a></li>
+          </ul>
+          <nav>
+            <a href="#nav1">ナビ1</a> | <a href="#nav2">ナビ2</a> |
+            <a href="#nav3">ナビ3</a>
+          </nav>
+        </div>
+
+        <!-- アクション要素のテスト -->
+        <div class="section">
+          <h3>🎯 アクション要素</h3>
+          <div class="test-elements">
+            <button onclick="alert('保存しました')">保存</button>
+            <button type="button">キャンセル</button>
+            <input type="button" value="リセット" />
+            <div class="custom-button" onclick="console.log('カスタムボタン')">カスタムボタン</div>
+            <span role="button" tabindex="0">ARIAボタン</span>
+            <a href="#" role="button">リンクボタン</a>
+            <div data-action="delete" onclick="confirm('削除しますか？')">削除</div>
+          </div>
+        </div>
+
+        <!-- フォーム要素のテスト -->
+        <div class="section">
+          <h3>📝 フォーム要素</h3>
+          <form>
+            <div class="test-elements">
+              <input type="text" placeholder="名前" />
+              <input type="email" placeholder="メールアドレス" />
+              <input type="password" placeholder="パスワード" />
+              <input type="number" placeholder="年齢" />
+              <input type="date" />
+              <input type="file" />
+              <select>
+                <option>選択してください</option>
+                <option>オプション1</option>
+                <option>オプション2</option>
+              </select>
+              <textarea placeholder="コメント"></textarea>
+              <input type="submit" value="送信" />
+            </div>
+          </form>
+        </div>
+
+        <!-- 切り替え要素のテスト -->
+        <div class="section">
+          <h3>🔄 切り替え要素</h3>
+          <div class="test-elements">
+            <label><input type="checkbox" /> チェックボックス1</label>
+            <label><input type="checkbox" checked /> チェックボックス2</label>
+            <label><input type="radio" name="radio1" /> ラジオ1</label>
+            <label><input type="radio" name="radio1" /> ラジオ2</label>
+            <div role="switch" tabindex="0">ARIAスイッチ</div>
+            <div class="toggle-switch" data-toggle="theme">テーマ切替</div>
+          </div>
+        </div>
+
+        <!-- 複合・複雑な要素のテスト -->
+        <div class="section">
+          <h3>🤔 複合・複雑な要素</h3>
+          <div class="card">
+            <h4>商品カード</h4>
+            <p>商品説明テキスト</p>
+            <span>価格: ¥1,000</span>
+            <button onclick="addToCart()">カートに追加</button>
+            <a href="/product/123">詳細を見る</a>
+          </div>
+          <details>
+            <summary>展開可能セクション</summary>
+            <p>ここに詳細内容が表示されます。</p>
+          </details>
+          <table>
+            <thead>
+              <tr>
+                <th onclick="sort('name')">名前 ↕</th>
+                <th onclick="sort('age')">年齢 ↕</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr onclick="selectRow(this)">
+                <td>田中太郎</td>
+                <td>25</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="classifier-panel">
+        <h2>🎯 分類結果</h2>
+        <button
+          onclick="classifyElements()"
+          style="
+            width: 100%;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+          "
+        >
+          要素を分類
+        </button>
+        <button
+          onclick="clearHighlights()"
+          style="
+            width: 100%;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+          "
+        >
+          ハイライト解除
+        </button>
+        <div id="results" class="results"></div>
+      </div>
+    </div>
+
+    <script>
+      // 新しい分類ロジック v2.0 - 完全に新しい5分類システム
+      class UIElementClassifierV2 {
+        constructor() {
+          this.classifications = {
+            navigation: [],
+            action: [],
+            form: [],
+            toggle: [],
+            unknown: [],
+          };
+          this.originalStyles = new Map();
+        }
+
+        classifyElements() {
+          // 分類をリセット
+          Object.keys(this.classifications).forEach(key => {
+            this.classifications[key] = [];
+          });
+
+          // インタラクティブ要素を検索
+          const elements = document.querySelectorAll(`
+                    a, button, input, select, textarea,
+                    [role="button"], [role="link"], [role="tab"], [role="menuitem"],
+                    [role="checkbox"], [role="radio"], [role="switch"],
+                    [onclick], [onmousedown], [onmouseup], [onkeydown],
+                    [tabindex]:not([tabindex="-1"]),
+                    .btn, .button, .toggle-switch, .custom-button,
+                    [data-action], [data-toggle], [data-target],
+                    details, summary, th[onclick], td[onclick]
+                `);
+
+          elements.forEach(element => {
+            const classification = this.classifyElement(element);
+            this.classifications[classification.type].push({
+              element,
+              ...classification,
+            });
+          });
+
+          return this.classifications;
+        }
+
+        classifyElement(element) {
+          const tagName = element.tagName.toLowerCase();
+          const type = element.getAttribute('type');
+          const role = element.getAttribute('role');
+          const href = element.getAttribute('href');
+          const onclick = element.getAttribute('onclick') || element.onclick;
+          const className = element.className || '';
+          const dataAttributes = [...element.attributes].filter(attr =>
+            attr.name.startsWith('data-')
+          );
+
+          // 1. フォーム要素（最優先）
+          if (['input', 'select', 'textarea'].includes(tagName)) {
+            // ただし、ボタン系やチェックボックス系は除外
+            if (type === 'checkbox' || type === 'radio') {
+              return { type: 'toggle', description: `切り替え要素: ${type}` };
+            }
+            if (['button', 'submit', 'reset'].includes(type)) {
+              return { type: 'action', description: `アクション要素: ${type}ボタン` };
+            }
+            return { type: 'form', description: `フォーム要素: ${type || tagName}` };
+          }
+
+          // 2. 切り替え要素
+          if (
+            role === 'switch' ||
+            role === 'checkbox' ||
+            role === 'radio' ||
+            className.match(/toggle|switch/i) ||
+            dataAttributes.some(attr => attr.name.match(/toggle/i))
+          ) {
+            return { type: 'toggle', description: '切り替え要素' };
+          }
+
+          // 3. ナビゲーション要素
+          if (tagName === 'a' && href) {
+            const isExternal = href.startsWith('http') || href.startsWith('//');
+            const isAnchor = href.startsWith('#');
+            const isSpecial = href.startsWith('mailto:') || href.startsWith('tel:');
+
+            if (role === 'button') {
+              return { type: 'action', description: 'リンクボタン' };
+            }
+
+            return {
+              type: 'navigation',
+              description: isExternal
+                ? '外部リンク'
+                : isAnchor
+                  ? 'アンカーリンク'
+                  : isSpecial
+                    ? '特殊リンク'
+                    : '内部リンク',
+            };
+          }
+
+          // 4. ナビゲーション要素（role や親要素での判定）
+          if (
+            role === 'link' ||
+            element.closest('nav') ||
+            element.closest('[role="navigation"]') ||
+            className.match(/nav|menu|breadcrumb/i)
+          ) {
+            return { type: 'navigation', description: 'ナビゲーション要素' };
+          }
+
+          // 5. アクション要素
+          if (
+            tagName === 'button' ||
+            role === 'button' ||
+            role === 'tab' ||
+            role === 'menuitem' ||
+            onclick ||
+            className.match(/btn|button|action/i) ||
+            dataAttributes.some(attr => attr.name.match(/action|target/i)) ||
+            tagName === 'summary' ||
+            (tagName === 'th' && onclick) ||
+            (tagName === 'td' && onclick)
+          ) {
+            return { type: 'action', description: 'アクション要素' };
+          }
+
+          // 6. その他/不明
+          return { type: 'unknown', description: '分類不明' };
+        }
+
+        highlightElements() {
+          const colors = {
+            navigation: '#6f42c1',
+            action: '#ff6b35',
+            form: '#28a745',
+            toggle: '#ffc107',
+            unknown: '#dc3545',
+          };
+
+          Object.entries(this.classifications).forEach(([type, elements]) => {
+            elements.forEach(({ element }) => {
+              if (!this.originalStyles.has(element)) {
+                this.originalStyles.set(element, {
+                  outline: element.style.outline,
+                  backgroundColor: element.style.backgroundColor,
+                  boxShadow: element.style.boxShadow,
+                });
+              }
+
+              const color = colors[type];
+              element.style.outline = `2px solid ${color}`;
+              element.style.backgroundColor = `${color}20`;
+              element.style.boxShadow = `0 0 0 1px ${color}`;
+            });
+          });
+        }
+
+        removeHighlights() {
+          this.originalStyles.forEach((originalStyle, element) => {
+            Object.assign(element.style, originalStyle);
+          });
+          this.originalStyles.clear();
+        }
+
+        getStatistics() {
+          const stats = {};
+          Object.entries(this.classifications).forEach(([type, elements]) => {
+            stats[type] = elements.length;
+          });
+          return stats;
+        }
+      }
+
+      let classifier = new UIElementClassifierV2();
+
+      function classifyElements() {
+        classifier.removeHighlights();
+        const classifications = classifier.classifyElements();
+        classifier.highlightElements();
+        displayResults(classifications);
+      }
+
+      function clearHighlights() {
+        classifier.removeHighlights();
+      }
+
+      function displayResults(classifications) {
+        const resultsDiv = document.getElementById('results');
+        const typeNames = {
+          navigation: '🧭 ナビゲーション',
+          action: '🎯 アクション',
+          form: '📝 フォーム',
+          toggle: '🔄 切り替え',
+          unknown: '❓ 不明',
+        };
+
+        let html = '';
+        Object.entries(classifications).forEach(([type, elements]) => {
+          if (elements.length > 0) {
+            html += `<div class="type-result ${type}">
+                        <strong>${typeNames[type]}: ${elements.length}件</strong>
+                        <ul>`;
+            elements.forEach(({ element, description }) => {
+              const elementInfo = `${element.tagName.toLowerCase()}${element.id ? '#' + element.id : ''}${element.className ? '.' + element.className.split(' ')[0] : ''}`;
+              html += `<li>${elementInfo} - ${description}</li>`;
+            });
+            html += `</ul></div>`;
+          }
+        });
+
+        resultsDiv.innerHTML = html || '<p>分類可能な要素が見つかりませんでした。</p>';
+      }
+
+      // ダミー関数
+      function addToCart() {
+        alert('カートに追加しました');
+      }
+      function sort(column) {
+        alert(`${column}でソートします`);
+      }
+      function selectRow(row) {
+        alert('行を選択しました');
+      }
+    </script>
+  </body>
+</html>

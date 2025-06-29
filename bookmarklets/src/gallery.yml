@@ -234,6 +234,21 @@ bookmarklets: # Utility Tools
       - 'パフォーマンス検証'
     enabled: false # 無効化
 
+  - id: 'ui-element-classifier'
+    file: 'ui-element-classifier.js'
+    category: 'development'
+    title: 'UI Element Classifier'
+    icon: '🎯'
+    description: 'ページ内のUIコンポーネントを5つのカテゴリに分類・視覚化する汎用ツール。あらゆるWebページでUI要素の機能を明確に識別'
+    features:
+      - 'インタラクティブ要素の自動検出・分類'
+      - '5分類システム（ナビゲーション・アクション・フォーム・切り替え・分類不明）'
+      - '要素タイプ別視覚的ハイライト表示'
+      - '汎用的なUI要素パターン認識'
+      - 'ホバーエフェクトによる要素機能の明確化'
+      - '分類結果のレポート出力機能'
+    enabled: true
+
 # ビルド設定
 # ギャラリー生成時の動作を制御します
 # 通常は変更不要ですが、カスタマイズが必要な場合に調整してください

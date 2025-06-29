@@ -29,7 +29,18 @@
     "code:check": "npm run format:check && npm run lint:check",
     "preinstall": "echo '📦 ブックマークレットギャラリー - 依存関係をインストール中...'",
     "postinstall": "echo '✅ インストール完了！npm run build でビルドを実行してください。'",
-    "test": "echo 'No tests specified'"
+    "test": "npm run test:ui-classifier",
+    "test:ui-classifier": "npm run extract-logic && node test/by-bookmarklet/ui-element-classifier/development.test.js",
+    "test:ui-classifier:main": "npm run extract-logic && node test/by-bookmarklet/ui-element-classifier/main.test.js",
+    "test:development": "npm run test:ui-classifier",
+    "test:productivity": "echo '📋 Productivity ブックマークレットのテストは未実装です'",
+    "test:utility": "echo '📋 Utility ブックマークレットのテストは未実装です'",
+    "test:all": "npm run test:development && npm run test:productivity && npm run test:utility",
+    "test:all:verbose": "npm run test:ui-classifier -- --verbose",
+    "test:watch": "nodemon --watch test/by-bookmarklet/ui-element-classifier/ --watch src/development/ui-element-classifier.js --ext js --exec \"npm run test:ui-classifier\"",
+    "extract-logic": "node scripts/extract-classifier-logic.js",
+    "extract-logic:force": "node scripts/extract-classifier-logic.js --force",
+    "extract-logic:check": "node scripts/extract-classifier-logic.js --check"
   },
   "keywords": [
     "bookmarklets",
@@ -58,6 +69,7 @@
     "eslint": "^8.57.1",
     "http-server": "^14.1.1",
     "js-yaml": "^4.1.0",
+    "jsdom": "^26.1.0",
     "nodemon": "^3.1.7",
     "prettier": "^3.6.0",
     "terser": "^5.36.0"
