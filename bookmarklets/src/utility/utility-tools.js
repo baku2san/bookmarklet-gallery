@@ -26,6 +26,73 @@
 (function () {
   'use strict';
 
+  // =============================================================================
+  // MemoryManager - メモリーリーク対策ユーティリティ（Utility Tools 用）
+  // =============================================================================
+  class MemoryManager {
+    constructor() {
+      this.eventListeners = new Map();
+      this.timeouts = new Set();
+      this.isCleanedUp = false;
+    }
+
+    addEventListener(element, type, handler, options = {}) {
+      if (this.isCleanedUp || !element || typeof handler !== 'function') return;
+
+      element.addEventListener(type, handler, options);
+
+      if (!this.eventListeners.has(element)) {
+        this.eventListeners.set(element, []);
+      }
+
+      this.eventListeners.get(element).push({ type, handler, options });
+    }
+
+    setTimeout(callback, delay, ...args) {
+      if (this.isCleanedUp) return null;
+
+      const timeoutId = setTimeout(() => {
+        this.timeouts.delete(timeoutId);
+        callback(...args);
+      }, delay);
+
+      this.timeouts.add(timeoutId);
+      return timeoutId;
+    }
+
+    cleanup() {
+      if (this.isCleanedUp) return;
+
+      // イベントリスナーのクリーンアップ
+      for (const [element, listeners] of this.eventListeners.entries()) {
+        for (const listener of listeners) {
+          try {
+            element.removeEventListener(listener.type, listener.handler, listener.options);
+          } catch (error) {
+            console.warn('Utility Tools MemoryManager: Error removing event listener:', error);
+          }
+        }
+      }
+      this.eventListeners.clear();
+
+      // タイムアウトのクリーンアップ
+      for (const timeoutId of this.timeouts) {
+        try {
+          clearTimeout(timeoutId);
+        } catch (error) {
+          console.warn('Utility Tools MemoryManager: Error clearing timeout:', error);
+        }
+      }
+      this.timeouts.clear();
+
+      this.isCleanedUp = true;
+      console.log('🛠️ Utility Tools: メモリークリーンアップ完了');
+    }
+  }
+
+  // メモリーマネージャーのインスタンス作成
+  const memoryManager = new MemoryManager();
+
   // =================================================================================
   // 🎨 UI スタイル定義
   // =================================================================================
@@ -46,7 +113,7 @@
             color: white;
             backdrop-filter: blur(10px);
         }
-        
+
         .utility-tools-header {
             padding: 20px;
             border-bottom: 1px solid rgba(255,255,255,0.2);
@@ -54,7 +121,7 @@
             justify-content: space-between;
             align-items: center;
         }
-        
+
         .utility-tools-title {
             font-size: 18px;
             font-weight: 600;
@@ -63,7 +130,7 @@
             align-items: center;
             gap: 8px;
         }
-        
+
         .utility-tools-close {
             background: rgba(255,255,255,0.2);
             border: none;
@@ -77,24 +144,24 @@
             justify-content: center;
             transition: all 0.2s ease;
         }
-        
+
         .utility-tools-close:hover {
             background: rgba(255,255,255,0.3);
             transform: scale(1.1);
         }
-        
+
         .utility-tools-content {
             padding: 20px;
         }
-        
+
         .utility-tools-section {
             margin-bottom: 24px;
         }
-        
+
         .utility-tools-section:last-child {
             margin-bottom: 0;
         }
-        
+
         .utility-tools-section-title {
             font-size: 14px;
             font-weight: 600;
@@ -104,7 +171,7 @@
             align-items: center;
             gap: 6px;
         }
-        
+
         .utility-tools-button {
             background: rgba(255,255,255,0.2);
             border: 1px solid rgba(255,255,255,0.3);
@@ -121,27 +188,27 @@
             min-width: 120px;
             justify-content: center;
         }
-        
+
         .utility-tools-button:hover {
             background: rgba(255,255,255,0.3);
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
-        
+
         .utility-tools-button:active {
             transform: translateY(0);
         }
-        
+
         .utility-tools-button.primary {
             background: rgba(255,255,255,0.9);
             color: #667eea;
             font-weight: 600;
         }
-        
+
         .utility-tools-button.primary:hover {
             background: white;
         }
-        
+
         .utility-tools-input {
             width: 100%;
             padding: 10px;
@@ -153,11 +220,11 @@
             margin: 8px 0;
             box-sizing: border-box;
         }
-        
+
         .utility-tools-input::placeholder {
             color: rgba(255,255,255,0.6);
         }
-        
+
         .utility-tools-url-info {
             background: rgba(255,255,255,0.1);
             padding: 12px;
@@ -167,7 +234,7 @@
             margin: 8px 0;
             word-break: break-all;
         }
-        
+
         .utility-tools-status {
             padding: 8px 12px;
             border-radius: 6px;
@@ -175,28 +242,28 @@
             margin: 8px 0;
             text-align: center;
         }
-        
+
         .utility-tools-status.success {
             background: rgba(34, 197, 94, 0.2);
             border: 1px solid rgba(34, 197, 94, 0.4);
         }
-        
+
         .utility-tools-status.error {
             background: rgba(239, 68, 68, 0.2);
             border: 1px solid rgba(239, 68, 68, 0.4);
         }
-        
+
         .utility-tools-status.info {
             background: rgba(59, 130, 246, 0.2);
             border: 1px solid rgba(59, 130, 246, 0.4);
         }
-        
+
         .utility-tools-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 8px;
         }
-        
+
         .utility-tools-grid .utility-tools-button {
             margin: 0;
             min-width: auto;
@@ -247,7 +314,7 @@
     const content = panel.querySelector('.utility-tools-content');
     content.insertBefore(status, content.firstChild);
 
-    setTimeout(() => {
+    memoryManager.setTimeout(() => {
       if (status.parentNode) {
         status.remove();
       }
@@ -342,7 +409,7 @@
 
       if (newUrl && newUrl !== url) {
         showStatus('🌐 言語を切り替えています...', 'info');
-        setTimeout(() => {
+        memoryManager.setTimeout(() => {
           location.href = newUrl;
         }, 1000);
       } else {
@@ -377,7 +444,7 @@
       if (location.protocol === 'http:') {
         const httpsUrl = location.href.replace('http://', 'https://');
         showStatus('🔒 HTTPSに切り替えています...', 'info');
-        setTimeout(() => {
+        memoryManager.setTimeout(() => {
           location.href = httpsUrl;
         }, 1000);
       } else {
@@ -482,21 +549,21 @@
                     </button>
                 </div>
             </div>
-            
+
             <div class="utility-tools-section">
                 <div class="utility-tools-section-title">🌐 言語・地域</div>
                 <button class="utility-tools-button primary" data-action="languageSwitch">
                     🔄 EN/JA 切り替え
                 </button>
             </div>
-            
+
             <div class="utility-tools-section">
                 <div class="utility-tools-section-title">📥 Office 365</div>
                 <button class="utility-tools-button primary" data-action="officeDownload">
                     📄 直接ダウンロード
                 </button>
             </div>
-            
+
             <div class="utility-tools-section">
                 <div class="utility-tools-section-title">ℹ️ 情報</div>
                 <button class="utility-tools-button" data-action="pageInfo">
@@ -507,13 +574,18 @@
     `;
 
   // イベントリスナーを設定
-  panel.querySelector('.utility-tools-close').addEventListener('click', () => {
+  memoryManager.addEventListener(panel.querySelector('.utility-tools-close'), 'click', () => {
+    // メモリーマネージャーでクリーンアップ
+    memoryManager.cleanup();
+
     panel.remove();
     styleSheet.remove();
+
+    console.log('🛠️ Utility Tools: パネル閉鎖・クリーンアップ完了');
   });
 
   // ボタンのクリックイベント
-  panel.addEventListener('click', e => {
+  memoryManager.addEventListener(panel, 'click', e => {
     const button = e.target.closest('[data-action]');
     if (button) {
       const action = button.getAttribute('data-action');

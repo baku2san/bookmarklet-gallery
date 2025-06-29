@@ -13,6 +13,160 @@
 
 javascript: (function () {
   'use strict';
+
+  // =============================================================================
+  // MemoryManager - メモリーリーク対策ユーティリティ（インライン版）
+  // =============================================================================
+  class MemoryManager {
+    constructor(options = {}) {
+      this.eventListeners = new Map();
+      this.intervals = new Set();
+      this.timeouts = new Set();
+      this.mutationObservers = new Set();
+
+      this.config = {
+        enableWarnings: options.enableWarnings !== false,
+        debugMode: options.debugMode || false,
+        ...options,
+      };
+
+      this.isCleanedUp = false;
+      this.createdAt = Date.now();
+    }
+
+    addEventListener(element, type, handler, options = {}) {
+      if (this.isCleanedUp || !element || typeof handler !== 'function') return;
+
+      element.addEventListener(type, handler, options);
+
+      if (!this.eventListeners.has(element)) {
+        this.eventListeners.set(element, []);
+      }
+
+      this.eventListeners.get(element).push({ type, handler, options });
+      this.log(`Added event listener: ${type}`);
+    }
+
+    removeEventListener(element, type, handler, options = {}) {
+      if (!element) return;
+
+      element.removeEventListener(type, handler, options);
+
+      if (this.eventListeners.has(element)) {
+        const listeners = this.eventListeners.get(element);
+        const index = listeners.findIndex(l => l.type === type && l.handler === handler);
+
+        if (index !== -1) {
+          listeners.splice(index, 1);
+          if (listeners.length === 0) {
+            this.eventListeners.delete(element);
+          }
+        }
+      }
+    }
+
+    setInterval(callback, delay, ...args) {
+      if (this.isCleanedUp) return null;
+
+      const intervalId = setInterval(callback, delay, ...args);
+      this.intervals.add(intervalId);
+      this.log(`Created interval: ${intervalId}`);
+      return intervalId;
+    }
+
+    setTimeout(callback, delay, ...args) {
+      if (this.isCleanedUp) return null;
+
+      const timeoutId = setTimeout(() => {
+        this.timeouts.delete(timeoutId);
+        callback(...args);
+      }, delay);
+
+      this.timeouts.add(timeoutId);
+      this.log(`Created timeout: ${timeoutId}`);
+      return timeoutId;
+    }
+
+    clearInterval(intervalId) {
+      if (intervalId && this.intervals.has(intervalId)) {
+        clearInterval(intervalId);
+        this.intervals.delete(intervalId);
+        this.log(`Cleared interval: ${intervalId}`);
+      }
+    }
+
+    clearTimeout(timeoutId) {
+      if (timeoutId && this.timeouts.has(timeoutId)) {
+        clearTimeout(timeoutId);
+        this.timeouts.delete(timeoutId);
+        this.log(`Cleared timeout: ${timeoutId}`);
+      }
+    }
+
+    cleanup() {
+      if (this.isCleanedUp) return;
+
+      this.log('Starting cleanup...');
+
+      // イベントリスナーのクリーンアップ
+      for (const [element, listeners] of this.eventListeners.entries()) {
+        for (const listener of listeners) {
+          try {
+            element.removeEventListener(listener.type, listener.handler, listener.options);
+          } catch (error) {
+            this.warn('Error removing event listener:', error);
+          }
+        }
+      }
+      this.eventListeners.clear();
+
+      // インターバルのクリーンアップ
+      for (const intervalId of this.intervals) {
+        try {
+          clearInterval(intervalId);
+        } catch (error) {
+          this.warn('Error clearing interval:', error);
+        }
+      }
+      this.intervals.clear();
+
+      // タイムアウトのクリーンアップ
+      for (const timeoutId of this.timeouts) {
+        try {
+          clearTimeout(timeoutId);
+        } catch (error) {
+          this.warn('Error clearing timeout:', error);
+        }
+      }
+      this.timeouts.clear();
+
+      // MutationObserverのクリーンアップ
+      for (const observer of this.mutationObservers) {
+        try {
+          observer.disconnect();
+        } catch (error) {
+          this.warn('Error disconnecting MutationObserver:', error);
+        }
+      }
+      this.mutationObservers.clear();
+
+      this.isCleanedUp = true;
+      this.log('Cleanup completed');
+    }
+
+    log(...args) {
+      if (this.config.debugMode) {
+        console.log('🧠 SharePoint Navigator MemoryManager:', ...args);
+      }
+    }
+
+    warn(...args) {
+      if (this.config.enableWarnings) {
+        console.warn('⚠️ SharePoint Navigator MemoryManager:', ...args);
+      }
+    }
+  }
+
   // =============================================================================
   // コンソール警告抑制（オプション）
   // =============================================================================
@@ -1569,12 +1723,19 @@ javascript: (function () {
     allCategories: [],
     siteInfo: null,
     textFilterHandler: null,
+    memoryManager: null,
 
     /**
      * パネルを初期化
      */
     initialize: function () {
       try {
+        // メモリーマネージャーを初期化
+        this.memoryManager = new MemoryManager({
+          debugMode: false,
+          enableWarnings: true,
+        });
+
         // 既存パネルをクリーンアップ
         if (Utils.cleanupExistingPanel()) {
           return;
@@ -1719,7 +1880,7 @@ javascript: (function () {
       // カテゴリトグルのイベントリスナーを設定
       const toggleElements = this.panel.querySelectorAll('[data-action="toggle-category"]');
       toggleElements.forEach(element => {
-        element.addEventListener('click', function (e) {
+        this.memoryManager.addEventListener(element, 'click', function (e) {
           e.preventDefault();
           e.stopPropagation();
 
@@ -1770,11 +1931,18 @@ javascript: (function () {
         }
       };
       window.shimaNavClosePanel = function () {
-        // 外部クリックイベントリスナーを削除
+        // MemoryManager でクリーンアップ
+        if (self.memoryManager) {
+          self.memoryManager.cleanup();
+        }
+
+        // 外部クリックイベントリスナーを削除（従来の方法での念のため）
         if (self.outsideClickHandler) {
           document.removeEventListener('click', self.outsideClickHandler, false);
           self.outsideClickHandler = null;
-        } // パネル内クリックイベントリスナーを削除
+        }
+
+        // パネル内クリックイベントリスナーを削除（従来の方法での念のため）
         if (self.panelClickHandler && self.panel) {
           self.panel.removeEventListener('click', self.panelClickHandler, false);
           self.panelClickHandler = null;
@@ -1783,7 +1951,9 @@ javascript: (function () {
         // パネルを削除
         if (self.panel && self.panel.parentNode) {
           self.panel.remove();
-        } // 注入したCSSを削除
+        }
+
+        // 注入したCSSを削除
         const styleElement = document.getElementById('shima-navigator-styles');
         if (styleElement) {
           styleElement.remove();
@@ -1797,6 +1967,8 @@ javascript: (function () {
 
         // グローバ関数をクリーンアップ
         Utils.cleanupGlobalFunctions();
+
+        console.log('🧠 SharePoint Navigator: 完全クリーンアップ完了');
       };
     },
 
@@ -1810,7 +1982,9 @@ javascript: (function () {
       const textInput = document.getElementById('nav-text-filter');
       if (textInput) {
         // 既存のイベントリスナーを削除
-        textInput.removeEventListener('input', this.textFilterHandler);
+        if (this.textFilterHandler) {
+          this.memoryManager.removeEventListener(textInput, 'input', this.textFilterHandler);
+        }
 
         // 新しいイベントリスナーを設定
         this.textFilterHandler = function (e) {
@@ -1831,7 +2005,7 @@ javascript: (function () {
           }, 0);
         };
 
-        textInput.addEventListener('input', this.textFilterHandler);
+        this.memoryManager.addEventListener(textInput, 'input', this.textFilterHandler);
       }
 
       // data-action属性を持つ要素にイベントリスナーを設定
@@ -1839,7 +2013,7 @@ javascript: (function () {
       console.log('Elements with data-action:', actionElements.length);
 
       actionElements.forEach(element => {
-        element.addEventListener('click', function (e) {
+        this.memoryManager.addEventListener(element, 'click', function (e) {
           e.preventDefault();
           e.stopPropagation();
 
@@ -1894,11 +2068,11 @@ javascript: (function () {
 
       // 既存のイベントリスナーがあれば削除
       if (this.outsideClickHandler) {
-        document.removeEventListener('click', this.outsideClickHandler);
+        this.memoryManager.removeEventListener(document, 'click', this.outsideClickHandler);
       }
 
       if (this.panelClickHandler) {
-        this.panel.removeEventListener('click', this.panelClickHandler);
+        this.memoryManager.removeEventListener(this.panel, 'click', this.panelClickHandler);
       }
 
       // パネル内クリックハンドラー - パネル内をクリックした場合はイベント伝播を停止
@@ -1924,11 +2098,11 @@ javascript: (function () {
       };
 
       // パネル内クリックハンドラーを追加（イベント伝播を停止するため）
-      this.panel.addEventListener('click', this.panelClickHandler, false);
+      this.memoryManager.addEventListener(this.panel, 'click', this.panelClickHandler, false);
 
       // 外部クリックハンドラーを追加（少し遅延させる）
-      setTimeout(function () {
-        document.addEventListener('click', self.outsideClickHandler, false);
+      this.memoryManager.setTimeout(function () {
+        self.memoryManager.addEventListener(document, 'click', self.outsideClickHandler, false);
       }, 100);
     },
   };

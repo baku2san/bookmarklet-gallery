@@ -21,6 +21,74 @@
 javascript: (function () {
   'use strict';
 
+  // =============================================================================
+  // MemoryManager - メモリーリーク対策ユーティリティ（File Downloader 用）
+  // =============================================================================
+  class MemoryManager {
+    constructor() {
+      this.eventListeners = new Map();
+      this.intervals = new Set();
+      this.timeouts = new Set();
+      this.isCleanedUp = false;
+    }
+
+    addEventListener(element, type, handler, options = {}) {
+      if (this.isCleanedUp || !element || typeof handler !== 'function') return;
+
+      element.addEventListener(type, handler, options);
+
+      if (!this.eventListeners.has(element)) {
+        this.eventListeners.set(element, []);
+      }
+
+      this.eventListeners.get(element).push({ type, handler, options });
+    }
+
+    setTimeout(callback, delay, ...args) {
+      if (this.isCleanedUp) return null;
+
+      const timeoutId = setTimeout(() => {
+        this.timeouts.delete(timeoutId);
+        callback(...args);
+      }, delay);
+
+      this.timeouts.add(timeoutId);
+      return timeoutId;
+    }
+
+    cleanup() {
+      if (this.isCleanedUp) return;
+
+      // イベントリスナーのクリーンアップ
+      for (const [element, listeners] of this.eventListeners.entries()) {
+        for (const listener of listeners) {
+          try {
+            element.removeEventListener(listener.type, listener.handler, listener.options);
+          } catch (error) {
+            console.warn('File Downloader MemoryManager: Error removing event listener:', error);
+          }
+        }
+      }
+      this.eventListeners.clear();
+
+      // タイムアウトのクリーンアップ
+      for (const timeoutId of this.timeouts) {
+        try {
+          clearTimeout(timeoutId);
+        } catch (error) {
+          console.warn('File Downloader MemoryManager: Error clearing timeout:', error);
+        }
+      }
+      this.timeouts.clear();
+
+      this.isCleanedUp = true;
+      console.log('📥 File Downloader: メモリークリーンアップ完了');
+    }
+  }
+
+  // メモリーマネージャーのインスタンス作成
+  const memoryManager = new MemoryManager();
+
   // 対応ファイル形式の定義
   const FILE_EXTENSIONS = {
     document: [
@@ -410,7 +478,7 @@ javascript: (function () {
       `;
 
       // チェックボックスのクリックイベント（イベント伝播を停止）
-      checkbox.addEventListener('click', e => {
+      memoryManager.addEventListener(checkbox, 'click', e => {
         e.stopPropagation();
         updateSelectedCount();
       });
@@ -468,7 +536,7 @@ javascript: (function () {
       sizeCell.textContent = file.size;
 
       // 行クリックでチェックボックス切り替え
-      row.addEventListener('click', e => {
+      memoryManager.addEventListener(row, 'click', e => {
         if (e.target !== checkbox) {
           checkbox.checked = !checkbox.checked;
           updateSelectedCount();
@@ -604,11 +672,11 @@ javascript: (function () {
     }
 
     // イベントリスナー
-    searchInput.addEventListener('input', filterFiles);
-    categorySelect.addEventListener('change', filterFiles);
+    memoryManager.addEventListener(searchInput, 'input', filterFiles);
+    memoryManager.addEventListener(categorySelect, 'change', filterFiles);
 
     // 全選択/全解除
-    selectAllBtn.addEventListener('click', () => {
+    memoryManager.addEventListener(selectAllBtn, 'click', () => {
       const visibleRows = tbody.querySelectorAll('tr:not([style*="display: none"])');
       visibleRows.forEach(row => {
         const checkbox = row.querySelector('input[type="checkbox"]');
@@ -617,7 +685,7 @@ javascript: (function () {
       updateSelectedCount();
     });
 
-    deselectAllBtn.addEventListener('click', () => {
+    memoryManager.addEventListener(deselectAllBtn, 'click', () => {
       const visibleRows = tbody.querySelectorAll('tr:not([style*="display: none"])');
       visibleRows.forEach(row => {
         const checkbox = row.querySelector('input[type="checkbox"]');
@@ -699,9 +767,14 @@ javascript: (function () {
         };
       },
       close: () => {
+        // メモリーマネージャーでクリーンアップ
+        memoryManager.cleanup();
+
         if (document.body.contains(overlay)) {
           document.body.removeChild(overlay);
         }
+
+        console.log('📥 File Downloader: パネル閉鎖・クリーンアップ完了');
       },
     };
   }
