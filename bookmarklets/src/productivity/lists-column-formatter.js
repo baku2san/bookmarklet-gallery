@@ -672,6 +672,7 @@ javascript: (() => {
       // 既存パネルがあれば削除
       const existingPanel = document.getElementById(CONSTANTS.PANEL_ID);
       if (existingPanel) {
+        memoryManager.cleanup(); // メモリクリーンアップ
         existingPanel.remove();
       }
 
@@ -708,7 +709,6 @@ javascript: (() => {
         display: flex !important;
         flex-direction: column !important;
         overflow: hidden !important;
-        resize: both !important;
         min-width: 350px !important;
         min-height: 400px !important;
       `;
@@ -716,6 +716,20 @@ javascript: (() => {
 
     // ドラッグ可能にする
     makeDraggable(element) {
+      // 既にドラッグ機能が設定済みの場合はスキップ
+      if (element.dataset.draggableSetup === 'true') {
+        return;
+      }
+
+      this.setupWindowMove(element);
+      this.setupResize(element);
+
+      // 設定完了マークを付ける
+      element.dataset.draggableSetup = 'true';
+    }
+
+    // ウィンドウ移動機能
+    setupWindowMove(element) {
       let isDragging = false;
       let startX, startY, initialX, initialY;
 
@@ -724,7 +738,12 @@ javascript: (() => {
 
       header.style.cursor = 'move';
 
-      memoryManager.addEventListener(header, 'mousedown', e => {
+      const handleMouseDown = e => {
+        // リサイズハンドルまたはその子要素がクリックされた場合は移動しない
+        if (e.target.classList.contains('resize-handle') || e.target.closest('.resize-handle')) {
+          return;
+        }
+
         isDragging = true;
         startX = e.clientX;
         startY = e.clientY;
@@ -732,27 +751,179 @@ javascript: (() => {
         initialY = element.offsetTop;
 
         header.style.cursor = 'grabbing';
+        document.body.style.userSelect = 'none'; // テキスト選択を無効化
         e.preventDefault();
-      });
+      };
 
-      memoryManager.addEventListener(document, 'mousemove', e => {
+      const handleMouseMove = e => {
         if (!isDragging) return;
 
         const deltaX = e.clientX - startX;
         const deltaY = e.clientY - startY;
 
-        element.style.left = `${initialX + deltaX}px`;
-        element.style.top = `${initialY + deltaY}px`;
-        element.style.right = 'auto';
-      });
+        let newX = initialX + deltaX;
+        let newY = initialY + deltaY;
 
-      memoryManager.addEventListener(document, 'mouseup', () => {
+        // ビューポート境界内に制限
+        const maxX = window.innerWidth - element.offsetWidth;
+        const maxY = window.innerHeight - element.offsetHeight;
+
+        newX = Math.max(0, Math.min(maxX, newX));
+        newY = Math.max(0, Math.min(maxY, newY));
+
+        element.style.left = `${newX}px`;
+        element.style.top = `${newY}px`;
+        element.style.right = 'auto';
+      };
+
+      const handleMouseUp = () => {
         if (isDragging) {
           isDragging = false;
           header.style.cursor = 'move';
+          document.body.style.userSelect = ''; // テキスト選択を再有効化
         }
-      });
-    } // メインビューを表示
+      };
+
+      memoryManager.addEventListener(header, 'mousedown', handleMouseDown);
+      memoryManager.addEventListener(document, 'mousemove', handleMouseMove);
+      memoryManager.addEventListener(document, 'mouseup', handleMouseUp);
+    }
+
+    // リサイズ機能
+    setupResize(element) {
+      // 既にリサイズハンドルが存在する場合はスキップ
+      if (element.querySelector('.resize-handle')) {
+        return;
+      }
+
+      // リサイズハンドルを追加
+      const resizeHandle = document.createElement('div');
+      resizeHandle.className = 'resize-handle';
+      resizeHandle.style.cssText = `
+        position: absolute !important;
+        bottom: -2px !important;
+        right: -2px !important;
+        width: 24px !important;
+        height: 24px !important;
+        cursor: se-resize !important;
+        background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.PRIMARY} !important;
+        border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.XL} 0 ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.XL} 0 !important;
+        z-index: 1001 !important;
+        opacity: 0.7 !important;
+        transition: all 0.2s ease !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+      `;
+
+      // リサイズアイコン追加（標準的なグリップスタイル）
+      resizeHandle.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 14 14" style="
+          position: absolute !important;
+          top: 50% !important;
+          left: 50% !important;
+          transform: translate(-50%, -50%) !important;
+          fill: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.INVERSE} !important;
+        ">
+          <!-- 対角線のドット -->
+          <circle cx="8" cy="8" r="1.5"/>
+          <circle cx="5" cy="11" r="1.5"/>
+          <circle cx="11" cy="5" r="1.5"/>
+          <circle cx="11" cy="8" r="1.5"/>
+          <circle cx="8" cy="11" r="1.5"/>
+          <circle cx="11" cy="11" r="1.5"/>
+        </svg>
+      `;
+
+      element.appendChild(resizeHandle);
+
+      let isResizing = false;
+      let startX, startY, startWidth, startHeight;
+      const handleMouseDown = e => {
+        isResizing = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        startWidth = parseInt(document.defaultView.getComputedStyle(element).width, 10);
+        startHeight = parseInt(document.defaultView.getComputedStyle(element).height, 10);
+
+        // カーソルスタイルの統一
+        document.body.style.cursor = 'se-resize';
+        resizeHandle.style.cursor = 'se-resize';
+        document.body.style.userSelect = 'none'; // テキスト選択を無効化
+        resizeHandle.style.opacity = '1';
+        resizeHandle.style.transform = 'scale(1.1)';
+
+        e.preventDefault();
+        e.stopPropagation();
+      };
+
+      const handleMouseMove = e => {
+        if (!isResizing) return;
+
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+        const newWidth = startWidth + deltaX;
+        const newHeight = startHeight + deltaY;
+
+        // 最小サイズ制限
+        const minWidth = 350;
+        const minHeight = 400;
+
+        // 最大サイズ制限（ビューポートの90%）
+        const maxWidth = window.innerWidth * 0.9;
+        const maxHeight = window.innerHeight * 0.9;
+
+        const finalWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+        const finalHeight = Math.max(minHeight, Math.min(maxHeight, newHeight));
+
+        element.style.width = `${finalWidth}px`;
+        element.style.height = `${finalHeight}px`;
+
+        // パネルが画面外に出ないように位置を調整
+        const rect = element.getBoundingClientRect();
+        if (rect.right > window.innerWidth) {
+          element.style.left = `${window.innerWidth - finalWidth}px`;
+          element.style.right = 'auto';
+        }
+        if (rect.bottom > window.innerHeight) {
+          element.style.top = `${window.innerHeight - finalHeight}px`;
+        }
+      };
+
+      const handleMouseUp = () => {
+        if (isResizing) {
+          isResizing = false;
+          document.body.style.cursor = '';
+          resizeHandle.style.cursor = 'se-resize';
+          document.body.style.userSelect = ''; // テキスト選択を再有効化
+          resizeHandle.style.opacity = '0.7';
+          resizeHandle.style.transform = 'scale(1)';
+        }
+      };
+
+      // ホバー効果
+      const handleMouseEnter = () => {
+        if (!isResizing) {
+          resizeHandle.style.opacity = '1';
+          resizeHandle.style.transform = 'scale(1.05)';
+        }
+      };
+
+      const handleMouseLeave = () => {
+        if (!isResizing) {
+          resizeHandle.style.opacity = '0.7';
+          resizeHandle.style.transform = 'scale(1)';
+        }
+      }; // イベントリスナーの登録
+      memoryManager.addEventListener(resizeHandle, 'mousedown', handleMouseDown);
+      memoryManager.addEventListener(document, 'mousemove', handleMouseMove);
+      memoryManager.addEventListener(document, 'mouseup', handleMouseUp);
+      memoryManager.addEventListener(resizeHandle, 'mouseenter', handleMouseEnter);
+      memoryManager.addEventListener(resizeHandle, 'mouseleave', handleMouseLeave);
+    }
+
+    // メインビューを表示
     showMainView() {
       this.currentView = 'main';
       const panel = document.getElementById(CONSTANTS.PANEL_ID);
@@ -761,7 +932,7 @@ javascript: (() => {
       panel.innerHTML = this.generateMainViewHTML();
       this.attachMainViewEvents();
 
-      // ドラッグ機能を再有効化
+      // ドラッグ機能を再有効化（まだ設定されていない場合のみ）
       setTimeout(() => {
         this.makeDraggable(panel);
       }, 50);
@@ -1647,7 +1818,7 @@ ${Utils.escapeHtml(JSON.stringify(format.formatJson, null, 2))}
       panel.innerHTML = this.generateManageViewHTML(formats);
       this.attachManageViewEvents();
 
-      // ドラッグ機能を再有効化
+      // ドラッグ機能を再有効化（まだ設定されていない場合のみ）
       setTimeout(() => {
         this.makeDraggable(panel);
       }, 50);
