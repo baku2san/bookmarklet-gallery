@@ -6,6 +6,50 @@
 javascript: (function () {
   'use strict';
 
+  // =============================================================================
+  // MemoryManager - メモリーリーク対策ユーティリティ（Page Analyzer 用）
+  // =============================================================================
+  class MemoryManager {
+    constructor() {
+      this.eventListeners = new Map();
+      this.isCleanedUp = false;
+    }
+
+    addEventListener(element, type, handler, options = {}) {
+      if (this.isCleanedUp || !element || typeof handler !== 'function') return;
+
+      element.addEventListener(type, handler, options);
+
+      if (!this.eventListeners.has(element)) {
+        this.eventListeners.set(element, []);
+      }
+
+      this.eventListeners.get(element).push({ type, handler, options });
+    }
+
+    cleanup() {
+      if (this.isCleanedUp) return;
+
+      // イベントリスナーのクリーンアップ
+      for (const [element, listeners] of this.eventListeners.entries()) {
+        for (const listener of listeners) {
+          try {
+            element.removeEventListener(listener.type, listener.handler, listener.options);
+          } catch (error) {
+            console.warn('Page Analyzer MemoryManager: Error removing event listener:', error);
+          }
+        }
+      }
+      this.eventListeners.clear();
+
+      this.isCleanedUp = true;
+      console.log('📊 Page Analyzer: メモリークリーンアップ完了');
+    }
+  }
+
+  // メモリーマネージャーのインスタンス作成
+  const memoryManager = new MemoryManager();
+
   // Remove existing panel if present
   var existingPanel = document.getElementById('shima-page-analyzer');
   if (existingPanel) {
@@ -94,7 +138,7 @@ javascript: (function () {
           <h3 style="margin: 0 !important; color: #007acc !important; font-size: 16px !important;">Page Analyzer</h3>
           <button id="shima-close-analyzer" style="background: #ff4757 !important; color: white !important; border: none !important; border-radius: 4px !important; padding: 4px 8px !important; cursor: pointer !important; font-size: 12px !important;">✕</button>
         </div>
-        
+
         <div style="margin-bottom: 12px !important;">
           <h4 style="margin: 0 0 5px 0 !important; font-size: 14px !important; color: #555 !important;">Basic Info</h4>
           <div style="font-size: 12px !important; color: #666 !important;">
@@ -106,7 +150,7 @@ javascript: (function () {
             <div><strong>Doctype:</strong> ${analysis.doctype}</div>
           </div>
         </div>
-        
+
         <div style="margin-bottom: 12px !important;">
           <h4 style="margin: 0 0 5px 0 !important; font-size: 14px !important; color: #555 !important;">Content</h4>
           <div style="font-size: 12px !important; color: #666 !important;">
@@ -117,7 +161,7 @@ javascript: (function () {
             <div><strong>Forms:</strong> ${analysis.forms}</div>
           </div>
         </div>
-        
+
         <div style="margin-bottom: 12px !important;">
           <h4 style="margin: 0 0 5px 0 !important; font-size: 14px !important; color: #555 !important;">Headings</h4>
           <div style="font-size: 12px !important; color: #666 !important;">
@@ -125,7 +169,7 @@ javascript: (function () {
             <div>H4: ${analysis.headings.h4} | H5: ${analysis.headings.h5} | H6: ${analysis.headings.h6}</div>
           </div>
         </div>
-        
+
         <div style="margin-bottom: 12px !important;">
           <h4 style="margin: 0 0 5px 0 !important; font-size: 14px !important; color: #555 !important;">Resources</h4>
           <div style="font-size: 12px !important; color: #666 !important;">
@@ -133,7 +177,7 @@ javascript: (function () {
             <div><strong>Stylesheets:</strong> ${analysis.stylesheets}</div>
           </div>
         </div>
-        
+
         <div style="margin-bottom: 12px !important;">
           <h4 style="margin: 0 0 5px 0 !important; font-size: 14px !important; color: #555 !important;">SEO</h4>
           <div style="font-size: 12px !important; color: #666 !important;">
@@ -144,7 +188,7 @@ javascript: (function () {
             <div><strong>Twitter Card:</strong> ${analysis.seo.hasTwitterCard ? '✅' : '❌'}</div>
           </div>
         </div>
-        
+
         <div style="margin-bottom: 12px !important;">
           <h4 style="margin: 0 0 5px 0 !important; font-size: 14px !important; color: #555 !important;">Viewport</h4>
           <div style="font-size: 12px !important; color: #666 !important;">
@@ -152,7 +196,7 @@ javascript: (function () {
             <div><strong>Meta Viewport:</strong> ${analysis.seo.metaViewport !== 'Missing' ? '✅' : '❌'}</div>
           </div>
         </div>
-        
+
         <div style="text-align: center !important; margin-top: 15px !important; padding-top: 10px !important; border-top: 1px solid #eee !important;">
           <button id="shima-copy-report" style="background: #007acc !important; color: white !important; border: none !important; border-radius: 4px !important; padding: 6px 12px !important; cursor: pointer !important; font-size: 12px !important; margin-right: 8px !important;">Copy Report</button>
           <button id="shima-export-csv" style="background: #28a745 !important; color: white !important; border: none !important; border-radius: 4px !important; padding: 6px 12px !important; cursor: pointer !important; font-size: 12px !important;">Export CSV</button>
@@ -262,18 +306,28 @@ TECHNICAL INFO
     var analysis = analyzePage();
     panel.innerHTML = createContent(analysis);
 
-    // Add event listeners
-    panel.querySelector('#shima-close-analyzer').addEventListener('click', function () {
-      panel.remove();
-    });
+    // Add event listeners with MemoryManager
+    const closeBtn = panel.querySelector('#shima-close-analyzer');
+    if (closeBtn) {
+      memoryManager.addEventListener(closeBtn, 'click', function () {
+        memoryManager.cleanup();
+        panel.remove();
+      });
+    }
 
-    panel.querySelector('#shima-copy-report').addEventListener('click', function () {
-      copyToClipboard(generateReport(analysis));
-    });
+    const copyBtn = panel.querySelector('#shima-copy-report');
+    if (copyBtn) {
+      memoryManager.addEventListener(copyBtn, 'click', function () {
+        copyToClipboard(generateReport(analysis));
+      });
+    }
 
-    panel.querySelector('#shima-export-csv').addEventListener('click', function () {
-      exportCSV(analysis);
-    });
+    const exportBtn = panel.querySelector('#shima-export-csv');
+    if (exportBtn) {
+      memoryManager.addEventListener(exportBtn, 'click', function () {
+        exportCSV(analysis);
+      });
+    }
 
     // Add to page
     document.body.appendChild(panel);

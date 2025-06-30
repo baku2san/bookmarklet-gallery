@@ -13,6 +13,84 @@ javascript: (() => {
   'use strict';
 
   // =============================================================================
+  // MemoryManager - メモリーリーク対策ユーティリティ（SharePoint API Navigator 用）
+  // =============================================================================
+  class MemoryManager {
+    constructor() {
+      this.eventListeners = new Map();
+      this.intervals = new Set();
+      this.timeouts = new Set();
+      this.isCleanedUp = false;
+    }
+
+    addEventListener(element, type, handler, options = {}) {
+      if (this.isCleanedUp || !element || typeof handler !== 'function') return;
+
+      element.addEventListener(type, handler, options);
+
+      if (!this.eventListeners.has(element)) {
+        this.eventListeners.set(element, []);
+      }
+
+      this.eventListeners.get(element).push({ type, handler, options });
+    }
+
+    setTimeout(callback, delay, ...args) {
+      if (this.isCleanedUp) return null;
+
+      const timeoutId = setTimeout(() => {
+        this.timeouts.delete(timeoutId);
+        callback(...args);
+      }, delay);
+
+      this.timeouts.add(timeoutId);
+      return timeoutId;
+    }
+
+    clearTimeout(timeoutId) {
+      if (timeoutId && this.timeouts.has(timeoutId)) {
+        clearTimeout(timeoutId);
+        this.timeouts.delete(timeoutId);
+      }
+    }
+
+    cleanup() {
+      if (this.isCleanedUp) return;
+
+      // イベントリスナーのクリーンアップ
+      for (const [element, listeners] of this.eventListeners.entries()) {
+        for (const listener of listeners) {
+          try {
+            element.removeEventListener(listener.type, listener.handler, listener.options);
+          } catch (error) {
+            console.warn(
+              'SharePoint API Navigator MemoryManager: Error removing event listener:',
+              error
+            );
+          }
+        }
+      }
+      this.eventListeners.clear();
+
+      // タイムアウトのクリーンアップ
+      for (const timeoutId of this.timeouts) {
+        try {
+          clearTimeout(timeoutId);
+        } catch (error) {
+          console.warn('SharePoint API Navigator MemoryManager: Error clearing timeout:', error);
+        }
+      }
+      this.timeouts.clear();
+
+      this.isCleanedUp = true;
+      console.log('🧠 SharePoint API Navigator: メモリークリーンアップ完了');
+    }
+  }
+
+  // メモリーマネージャーのグローバルインスタンス
+  const memoryManager = new MemoryManager();
+
+  // =============================================================================
   // コンソール警告抑制（オプション）
   // =============================================================================
   const SUPPRESS_MUTATION_WARNINGS = true; // 必要に応じてfalseに変更
@@ -580,21 +658,21 @@ javascript: (() => {
         .map(
           endpoint => `
           <div class="shima-api-endpoint" data-endpoint-id="${endpoint.id}"
-               style="margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important; 
-                      padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important; 
+               style="margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;
+                      padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;
                       border: 1px solid ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BORDER.DEFAULT} !important;
-                      border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important; 
-                      cursor: pointer !important; 
+                      border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important;
+                      cursor: pointer !important;
                       background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BACKGROUND.PRIMARY} !important;
                       transition: all ${SHAREPOINT_DESIGN_SYSTEM.TRANSITIONS.DEFAULT} !important;">
-            <div style="font-weight: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.WEIGHTS.SEMIBOLD} !important; 
-                        font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.SMALL} !important; 
+            <div style="font-weight: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.WEIGHTS.SEMIBOLD} !important;
+                        font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.SMALL} !important;
                         word-break: break-word !important;
                         color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.PRIMARY} !important;">
               ${endpoint.title}
             </div>
-            <div style="font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.CAPTION} !important; 
-                        color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.SECONDARY} !important; 
+            <div style="font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.CAPTION} !important;
+                        color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.SECONDARY} !important;
                         margin-top: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.XS} !important;
                         word-break: break-word !important;">
               ${endpoint.description}
@@ -614,36 +692,36 @@ javascript: (() => {
     } // ヘッダーHTML生成
     generateHeaderHTML() {
       return `
-        <div id="shima-drag-handle" style="padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.LG} !important; 
-             border-bottom: 1px solid ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BORDER.DEFAULT} !important; 
+        <div id="shima-drag-handle" style="padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.LG} !important;
+             border-bottom: 1px solid ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BORDER.DEFAULT} !important;
              background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BACKGROUND.SECONDARY} !important;
              cursor: grab !important;" title="ここをドラッグしてパネルを移動できます">
           <div style="display: flex !important; justify-content: space-between !important; align-items: center !important;
                       flex-wrap: wrap !important; gap: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;">
-            <h3 style="margin: 0 !important; color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.PRIMARY} !important; 
-                       font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.H3} !important; 
+            <h3 style="margin: 0 !important; color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.PRIMARY} !important;
+                       font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.H3} !important;
                        font-weight: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.WEIGHTS.SEMIBOLD} !important;
                        pointer-events: none !important;">
               🔌 SharePoint API Navigator
             </h3>
-            <div style="display: flex !important; gap: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important; 
+            <div style="display: flex !important; gap: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;
                         align-items: center !important; flex-wrap: wrap !important;">
-              <button id="shima-toggle-sidebar" style="background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.MUTED} !important; 
+              <button id="shima-toggle-sidebar" style="background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.MUTED} !important;
                       color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.INVERSE} !important;
-                      border: none !important; border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important; 
+                      border: none !important; border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important;
                       padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.XS} ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;
                       cursor: pointer !important; font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.CAPTION} !important;
                       transition: all ${SHAREPOINT_DESIGN_SYSTEM.TRANSITIONS.DEFAULT} !important;">📱 メニュー</button>
-              <button id="shima-close-api-navigator" style="background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.DANGER} !important; 
+              <button id="shima-close-api-navigator" style="background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.DANGER} !important;
                       color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.INVERSE} !important;
-                      border: none !important; border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important; 
+                      border: none !important; border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important;
                       padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important;
                       cursor: pointer !important; font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.SMALL} !important;
                       transition: all ${SHAREPOINT_DESIGN_SYSTEM.TRANSITIONS.DEFAULT} !important;">✕ 閉じる</button>
             </div>
           </div>
-          <div style="margin-top: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important; 
-                      font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.SMALL} !important; 
+          <div style="margin-top: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;
+                      font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.SMALL} !important;
                       color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.SECONDARY} !important;
                       word-break: break-all !important; pointer-events: none !important;">
             Site: <strong>${this.baseUrl}</strong>
@@ -656,12 +734,12 @@ javascript: (() => {
     generateSidebarHTML(endpointsHTML) {
       return `
         <div id="shima-sidebar" style="width: 280px !important; min-width: 200px !important;
-             border-right: 1px solid ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BORDER.DEFAULT} !important; 
-             background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BACKGROUND.SECONDARY} !important; 
+             border-right: 1px solid ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BORDER.DEFAULT} !important;
+             background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BACKGROUND.SECONDARY} !important;
              padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important;
              overflow-y: auto !important; transition: margin-left ${SHAREPOINT_DESIGN_SYSTEM.TRANSITIONS.SLOW} !important;">
-          <h4 style="margin: 0 0 ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} 0 !important; 
-                     font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.H4} !important; 
+          <h4 style="margin: 0 0 ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} 0 !important;
+                     font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.H4} !important;
                      color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.PRIMARY} !important;
                      font-weight: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.WEIGHTS.SEMIBOLD} !important;">
             API エンドポイント
@@ -685,39 +763,39 @@ javascript: (() => {
     // コントロールパネルHTML生成
     generateControlPanelHTML() {
       return `
-        <div style="padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important; 
-                    border-bottom: 1px solid ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BORDER.DEFAULT} !important; 
+        <div style="padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important;
+                    border-bottom: 1px solid ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BORDER.DEFAULT} !important;
                     background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BACKGROUND.SECONDARY} !important;">
-          <div style="display: flex !important; gap: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important; 
+          <div style="display: flex !important; gap: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;
                       align-items: center !important; flex-wrap: wrap !important;">
-            <button id="shima-execute-api" style="background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.SUCCESS} !important; 
+            <button id="shima-execute-api" style="background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.SUCCESS} !important;
                     color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.INVERSE} !important;
-                    border: none !important; border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important; 
+                    border: none !important; border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important;
                     padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important;
                     cursor: pointer !important; font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.SMALL} !important;
                     transition: all ${SHAREPOINT_DESIGN_SYSTEM.TRANSITIONS.DEFAULT} !important;" disabled>🚀 実行</button>
-            <button id="shima-clear-results" style="background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.MUTED} !important; 
+            <button id="shima-clear-results" style="background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.MUTED} !important;
                     color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.INVERSE} !important;
-                    border: none !important; border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important; 
+                    border: none !important; border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important;
                     padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important;
                     cursor: pointer !important; font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.SMALL} !important;
                     transition: all ${SHAREPOINT_DESIGN_SYSTEM.TRANSITIONS.DEFAULT} !important;">🗑️ クリア</button>
-            <button id="shima-back-to-main" style="display: none !important; 
-                    background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.WARNING} !important; 
+            <button id="shima-back-to-main" style="display: none !important;
+                    background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.WARNING} !important;
                     color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.INVERSE} !important;
-                    border: none !important; border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important; 
+                    border: none !important; border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important;
                     padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important;
                     cursor: pointer !important; font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.SMALL} !important;
                     transition: all ${SHAREPOINT_DESIGN_SYSTEM.TRANSITIONS.DEFAULT} !important;">← 戻る</button>
             <input type="text" id="shima-filter-input" placeholder="フィルター..."
-                   style="border: 1px solid ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BORDER.DEFAULT} !important; 
-                          border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important; 
+                   style="border: 1px solid ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BORDER.DEFAULT} !important;
+                          border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important;
                           padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.XS} ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;
-                          font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.SMALL} !important; 
+                          font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.SMALL} !important;
                           min-width: 100px !important; flex: 1 !important; max-width: 200px !important;">
-            <select id="shima-view-mode" style="border: 1px solid ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BORDER.DEFAULT} !important; 
+            <select id="shima-view-mode" style="border: 1px solid ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BORDER.DEFAULT} !important;
                     border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important;
-                    padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.XS} ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important; 
+                    padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.XS} ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;
                     font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.SMALL} !important;">
               <option value="table">テーブル表示</option>
               <option value="json">JSON表示</option>
@@ -763,7 +841,7 @@ javascript: (() => {
     // 結果エリアHTML生成
     generateResultsAreaHTML() {
       return `
-        <div id="shima-results-area" style="flex: 1 !important; padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important; 
+        <div id="shima-results-area" style="flex: 1 !important; padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important;
              overflow: auto !important; min-height: 0 !important; display: flex !important; flex-direction: column !important;">
           <div style="text-align: center !important; color: #666 !important; padding: 40px !important;">
             📡 左側からAPIエンドポイントを選択し、「実行」ボタンでAPIを呼び出してください。
@@ -836,7 +914,7 @@ javascript: (() => {
                           const table = cell.closest('table');
                           const allRows = table.querySelectorAll('tbody tr');
                           const allSelectors = table.querySelectorAll('.shima-row-selector');
-                          
+
                           // 全ての選択を解除
                           allRows.forEach(r => {
                             r.classList.remove('shima-selected-row');
@@ -846,23 +924,23 @@ javascript: (() => {
                             s.textContent = '○';
                             s.style.color = '#999';
                           });
-                          
+
                           // 現在の行を選択
                           const currentRow = cell.closest('tr');
                           const currentSelector = cell.querySelector('.shima-row-selector');
-                          
+
                           currentRow.classList.add('shima-selected-row');
                           currentRow.style.backgroundColor = 'rgba(0, 123, 255, 0.15)';
                           currentSelector.textContent = '●';
                           currentSelector.style.color = '#0078d4';
-                          
+
                           // 選択されたアイテムの情報を更新
                           window.shimaSelectedItem = {
                             index: rowIndex,
                             id: currentRow.dataset.itemId,
                             data: window.shimaCurrentData ? window.shimaCurrentData[rowIndex] : null
                           };
-                          
+
                           // 選択されたリスト名を更新
                           if (window.shimaSelectedItem.data && window.shimaSelectedItem.data.Title) {
                             const nameSpan = document.getElementById('shima-selected-list-name');
@@ -881,7 +959,7 @@ javascript: (() => {
             : 'min-width: 120px !important;';
 
           // データ列のインデックスは選択列分を考慮して +1
-          tableHtml += `<td data-column="${columnIndex + 1}" data-field="${field}" data-value="${Utils.escapeHtml(String(value))}" 
+          tableHtml += `<td data-column="${columnIndex + 1}" data-field="${field}" data-value="${Utils.escapeHtml(String(value))}"
                         style="border: 1px solid #ddd !important; padding: 8px !important;
                         max-width: ${CONSTANTS.MAX_CELL_LENGTH}px !important; overflow: hidden !important;
                         text-overflow: ellipsis !important; white-space: nowrap !important; ${cellWidth}
@@ -889,14 +967,14 @@ javascript: (() => {
                         title="クリック: セル値をコピー / 値: ${Utils.escapeHtml(String(value))}"                        onclick="(function(cell) {
                           const value = cell.dataset.value || cell.textContent.trim();
                           const fieldName = cell.dataset.field || 'データ';
-                          
+
                           navigator.clipboard.writeText(value).then(() => {
                             // セルの背景色変更（視覚的フィードバック）
                             const originalBg = cell.style.backgroundColor;
                             cell.style.backgroundColor = '#d4edda';
                             cell.style.transition = 'background-color 0.3s ease';
-                            setTimeout(() => { 
-                              cell.style.backgroundColor = originalBg; 
+                            setTimeout(() => {
+                              cell.style.backgroundColor = originalBg;
                               cell.style.transition = 'background-color 0.2s ease';
                             }, 800);
                               // 一時メッセージ表示
@@ -910,7 +988,7 @@ javascript: (() => {
                                 </div>
                               </div>
                             \`;
-                            
+
                             // グローバル関数を使用してメッセージ表示
                             if (typeof window.shimaShowMessage === 'function') {
                               window.shimaShowMessage(message, 'success', 2500);
@@ -921,8 +999,8 @@ javascript: (() => {
                             console.warn('クリップボードへのコピーに失敗:', err);
                             const originalBg = cell.style.backgroundColor;
                             cell.style.backgroundColor = '#f8d7da';
-                            setTimeout(() => { 
-                              cell.style.backgroundColor = originalBg; 
+                            setTimeout(() => {
+                              cell.style.backgroundColor = originalBg;
                             }, 800);
                               // エラーメッセージ表示
                             const errorMessage = \`
@@ -934,7 +1012,7 @@ javascript: (() => {
                                 </div>
                               </div>
                             \`;
-                            
+
                             // グローバル関数を使用してエラーメッセージ表示
                             if (typeof window.shimaShowMessage === 'function') {
                               window.shimaShowMessage(errorMessage, 'error', 3000);
@@ -1345,8 +1423,13 @@ javascript: (() => {
     setupCloseButton() {
       const closeBtn = document.getElementById('shima-close-api-navigator');
       if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
+        memoryManager.addEventListener(closeBtn, 'click', () => {
+          // メモリーマネージャーでクリーンアップ
+          memoryManager.cleanup();
+
           this.uiManager.panel.remove();
+
+          console.log('🧠 SharePoint API Navigator: パネル閉鎖・クリーンアップ完了');
         });
       } else {
         console.warn('閉じるボタンが見つかりません');
@@ -1357,7 +1440,7 @@ javascript: (() => {
     setupSidebarToggle() {
       const toggleBtn = document.getElementById('shima-toggle-sidebar');
       if (toggleBtn) {
-        toggleBtn.addEventListener('click', function () {
+        memoryManager.addEventListener(toggleBtn, 'click', function () {
           const sidebar = document.getElementById('shima-sidebar');
           if (sidebar) {
             const isHidden = sidebar.style.marginLeft === '-280px';
@@ -1380,7 +1463,7 @@ javascript: (() => {
     setupExecuteButton() {
       const executeBtn = document.getElementById('shima-execute-api');
       if (executeBtn) {
-        executeBtn.addEventListener('click', () => {
+        memoryManager.addEventListener(executeBtn, 'click', () => {
           if (this.currentSelectedEndpoint) {
             this.apiManager.executeApi(this.currentSelectedEndpoint);
           }
@@ -1392,7 +1475,7 @@ javascript: (() => {
     setupClearButton() {
       const clearBtn = document.getElementById('shima-clear-results');
       if (clearBtn) {
-        clearBtn.addEventListener('click', () => {
+        memoryManager.addEventListener(clearBtn, 'click', () => {
           const resultsArea = document.getElementById('shima-results-area');
           const filterInput = document.getElementById('shima-filter-input');
           const contextDiv = document.getElementById('shima-current-context');
@@ -1442,7 +1525,7 @@ javascript: (() => {
         let debounceTimer;
         filterInput.addEventListener('input', () => {
           clearTimeout(debounceTimer);
-          debounceTimer = setTimeout(() => {
+          debounceTimer = memoryManager.setTimeout(() => {
             this.applyTableFilter();
           }, 300); // 300ms のデバウンス
         });

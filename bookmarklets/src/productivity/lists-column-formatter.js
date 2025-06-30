@@ -13,6 +13,48 @@ javascript: (() => {
   'use strict';
 
   // =============================================================================
+  // Memory Manager の読み込み
+  // =============================================================================
+  // MemoryManager クラスが利用できない場合は読み込む
+  if (typeof MemoryManager === 'undefined') {
+    // MemoryManager のロード用スクリプト
+    const script = document.createElement('script');
+    script.src =
+      'https://cdn.jsdelivr.net/gh/shimabukuromeg/bookmarklet-gallery@main/bookmarklets/src/memory-manager.js';
+    script.onerror = () => {
+      console.warn('MemoryManager の読み込みに失敗。基本機能で動作します。');
+      window.MemoryManager = class {
+        addEventListener(el, type, handler, opts) {
+          el.addEventListener(type, handler, opts);
+        }
+        removeEventListener(el, type, handler, opts) {
+          el.removeEventListener(type, handler, opts);
+        }
+        setInterval(cb, delay) {
+          return setInterval(cb, delay);
+        }
+        setTimeout(cb, delay) {
+          return setTimeout(cb, delay);
+        }
+        clearInterval(id) {
+          clearInterval(id);
+        }
+        clearTimeout(id) {
+          clearTimeout(id);
+        }
+        cleanup() {}
+      };
+    };
+    document.head.appendChild(script);
+  }
+
+  // Memory Manager インスタンス
+  const memoryManager = new MemoryManager({
+    debugMode: false,
+    enableWarnings: true,
+  });
+
+  // =============================================================================
   // 定数定義
   // =============================================================================
   const CONSTANTS = {
@@ -682,7 +724,7 @@ javascript: (() => {
 
       header.style.cursor = 'move';
 
-      header.addEventListener('mousedown', e => {
+      memoryManager.addEventListener(header, 'mousedown', e => {
         isDragging = true;
         startX = e.clientX;
         startY = e.clientY;
@@ -693,7 +735,7 @@ javascript: (() => {
         e.preventDefault();
       });
 
-      document.addEventListener('mousemove', e => {
+      memoryManager.addEventListener(document, 'mousemove', e => {
         if (!isDragging) return;
 
         const deltaX = e.clientX - startX;
@@ -704,7 +746,7 @@ javascript: (() => {
         element.style.right = 'auto';
       });
 
-      document.addEventListener('mouseup', () => {
+      memoryManager.addEventListener(document, 'mouseup', () => {
         if (isDragging) {
           isDragging = false;
           header.style.cursor = 'move';
@@ -833,44 +875,63 @@ javascript: (() => {
 
     // メインビューイベント追加
     attachMainViewEvents() {
-      document.getElementById('close-panel')?.addEventListener('click', () => {
-        document.getElementById(CONSTANTS.PANEL_ID)?.remove();
-      });
+      const closeBtn = document.getElementById('close-panel');
+      if (closeBtn) {
+        memoryManager.addEventListener(closeBtn, 'click', () => {
+          memoryManager.cleanup();
+          document.getElementById(CONSTANTS.PANEL_ID)?.remove();
+        });
+      }
 
-      document.getElementById('extract-format')?.addEventListener('click', () => {
-        this.showExtractView();
-      });
+      const extractBtn = document.getElementById('extract-format');
+      if (extractBtn) {
+        memoryManager.addEventListener(extractBtn, 'click', () => {
+          this.showExtractView();
+        });
+      }
 
-      document.getElementById('apply-format')?.addEventListener('click', () => {
-        this.showApplyView();
-      });
+      const applyBtn = document.getElementById('apply-format');
+      if (applyBtn) {
+        memoryManager.addEventListener(applyBtn, 'click', () => {
+          this.showApplyView();
+        });
+      }
 
-      document.getElementById('manage-formats')?.addEventListener('click', () => {
-        this.showManageView();
-      });
+      const manageBtn = document.getElementById('manage-formats');
+      if (manageBtn) {
+        memoryManager.addEventListener(manageBtn, 'click', () => {
+          this.showManageView();
+        });
+      }
 
-      document.getElementById('import-format')?.addEventListener('click', async () => {
-        const imported = await this.formatManager.importFormatFromClipboard();
-        if (imported) {
-          this.showMessage('書式をインポートしました', 'success');
-          setTimeout(() => this.showMainView(), 1500);
-        } else {
-          this.showMessage('インポートに失敗しました', 'error');
-        }
-      });
+      const importBtn = document.getElementById('import-format');
+      if (importBtn) {
+        memoryManager.addEventListener(importBtn, 'click', async () => {
+          const imported = await this.formatManager.importFormatFromClipboard();
+          if (imported) {
+            this.showMessage('書式をインポートしました', 'success');
+            memoryManager.setTimeout(() => this.showMainView(), 1500);
+          } else {
+            this.showMessage('インポートに失敗しました', 'error');
+          }
+        });
+      }
 
-      document.getElementById('export-all')?.addEventListener('click', () => {
-        this.exportAllFormats();
-      });
+      const exportBtn = document.getElementById('export-all');
+      if (exportBtn) {
+        memoryManager.addEventListener(exportBtn, 'click', () => {
+          this.exportAllFormats();
+        });
+      }
 
       // ボタンホバー効果
       document.querySelectorAll('.action-button').forEach(button => {
-        button.addEventListener('mouseenter', () => {
+        memoryManager.addEventListener(button, 'mouseenter', () => {
           button.style.opacity = '0.9';
           button.style.transform = 'translateY(-1px)';
         });
 
-        button.addEventListener('mouseleave', () => {
+        memoryManager.addEventListener(button, 'mouseleave', () => {
           button.style.opacity = '1';
           button.style.transform = 'translateY(0)';
         });
@@ -992,148 +1053,165 @@ javascript: (() => {
 
     // 書式取得ビューイベント追加
     attachExtractViewEvents() {
-      document.getElementById('close-panel')?.addEventListener('click', () => {
-        document.getElementById(CONSTANTS.PANEL_ID)?.remove();
-      });
+      const closeBtn = document.getElementById('close-panel');
+      if (closeBtn) {
+        memoryManager.addEventListener(closeBtn, 'click', () => {
+          memoryManager.cleanup();
+          document.getElementById(CONSTANTS.PANEL_ID)?.remove();
+        });
+      }
 
-      document.getElementById('back-to-main')?.addEventListener('click', () => {
-        this.showMainView();
-      });
+      const backBtn = document.getElementById('back-to-main');
+      if (backBtn) {
+        memoryManager.addEventListener(backBtn, 'click', () => {
+          this.showMainView();
+        });
+      }
 
-      document.getElementById('list-select')?.addEventListener('change', async e => {
-        const listId = e.target.value;
-        if (!listId) {
-          document.getElementById('fields-container').style.display = 'none';
-          return;
-        }
-        try {
-          // デフォルトビューで表示される列のみを取得
-          const viewInfo = await this.apiClient.getDefaultViewFields(listId);
-          const fieldSelect = document.getElementById('field-select');
-          fieldSelect.innerHTML = '<option value="">列を選択してください</option>';
+      const listSelect = document.getElementById('list-select');
+      if (listSelect) {
+        memoryManager.addEventListener(listSelect, 'change', async e => {
+          const listId = e.target.value;
+          if (!listId) {
+            document.getElementById('fields-container').style.display = 'none';
+            return;
+          }
+          try {
+            // デフォルトビューで表示される列のみを取得
+            const viewInfo = await this.apiClient.getDefaultViewFields(listId);
+            const fieldSelect = document.getElementById('field-select');
+            fieldSelect.innerHTML = '<option value="">列を選択してください</option>';
 
-          if (viewInfo.fields.length === 0) {
-            fieldSelect.innerHTML += '<option disabled>表示可能な列がありません</option>';
-          } else {
-            // リストタイトルとビュー情報を表示
-            const listTitle = document.getElementById('list-select').selectedOptions[0].textContent;
-            fieldSelect.innerHTML += `<option disabled>--- ${Utils.escapeHtml(listTitle)} (${Utils.escapeHtml(viewInfo.viewTitle)}: ${viewInfo.fields.length}/${viewInfo.viewFieldCount}列) ---</option>`;
-            viewInfo.fields.forEach(field => {
-              const normalizedType = ColumnFormatManager.normalizeColumnType(field.TypeAsString);
-              fieldSelect.innerHTML += `
-                <option value="${field.Id}" data-type="${normalizedType}" data-original-type="${field.TypeAsString}">
-                  ${Utils.escapeHtml(field.Title)} (${normalizedType})
-                </option>
-              `;
-            });
+            if (viewInfo.fields.length === 0) {
+              fieldSelect.innerHTML += '<option disabled>表示可能な列がありません</option>';
+            } else {
+              // リストタイトルとビュー情報を表示
+              const listTitle =
+                document.getElementById('list-select').selectedOptions[0].textContent;
+              fieldSelect.innerHTML += `<option disabled>--- ${Utils.escapeHtml(listTitle)} (${Utils.escapeHtml(viewInfo.viewTitle)}: ${viewInfo.fields.length}/${viewInfo.viewFieldCount}列) ---</option>`;
+              viewInfo.fields.forEach(field => {
+                const normalizedType = ColumnFormatManager.normalizeColumnType(field.TypeAsString);
+                fieldSelect.innerHTML += `
+                  <option value="${field.Id}" data-type="${normalizedType}" data-original-type="${field.TypeAsString}">
+                    ${Utils.escapeHtml(field.Title)} (${normalizedType})
+                  </option>
+                `;
+              });
 
-            // 除外された列がある場合の説明を追加
-            if (viewInfo.fields.length < viewInfo.viewFieldCount) {
-              fieldSelect.innerHTML += `<option disabled>--- ${viewInfo.viewFieldCount - viewInfo.fields.length}列が読み取り専用のため除外されました ---</option>`;
+              // 除外された列がある場合の説明を追加
+              if (viewInfo.fields.length < viewInfo.viewFieldCount) {
+                fieldSelect.innerHTML += `<option disabled>--- ${viewInfo.viewFieldCount - viewInfo.fields.length}列が読み取り専用のため除外されました ---</option>`;
+              }
             }
+
+            document.getElementById('fields-container').style.display = 'block';
+          } catch (error) {
+            this.showMessage('列情報の取得に失敗しました', 'error');
           }
+        });
+      }
 
-          document.getElementById('fields-container').style.display = 'block';
-        } catch (error) {
-          this.showMessage('列情報の取得に失敗しました', 'error');
-        }
-      });
+      const fieldSelect = document.getElementById('field-select');
+      if (fieldSelect) {
+        memoryManager.addEventListener(fieldSelect, 'change', async e => {
+          const fieldId = e.target.value;
+          const listId = document.getElementById('list-select').value;
 
-      document.getElementById('field-select')?.addEventListener('change', async e => {
-        const fieldId = e.target.value;
-        const listId = document.getElementById('list-select').value;
-
-        if (!fieldId || !listId) {
-          document.getElementById('format-preview').style.display = 'none';
-          document.getElementById('save-container').style.display = 'none';
-          return;
-        }
-
-        try {
-          const formatJson = await this.apiClient.getColumnFormatting(listId, fieldId);
-          const previewContainer = document.getElementById('format-preview');
-
-          if (formatJson) {
-            previewContainer.innerHTML = `
-              <div style="margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.LG} !important;">
-                <h4 style="margin: 0 0 ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} 0 !important;
-                   color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.PRIMARY} !important;">
-                  📋 現在の書式設定:
-                </h4>
-                <pre style="background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BACKGROUND.SECONDARY} !important;
-                     padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important;
-                     border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important;
-                     font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.CAPTION} !important;
-                     max-height: 200px !important; overflow-y: auto !important;
-                     white-space: pre-wrap !important; word-break: break-word !important;">
-${Utils.escapeHtml(JSON.stringify(formatJson, null, 2))}
-                </pre>
-              </div>
-            `;
-
-            // 自動で書式名を設定
-            const fieldName = document
-              .getElementById('field-select')
-              .selectedOptions[0].textContent.split(' (')[0];
-            document.getElementById('format-name').value = `${fieldName}の書式`;
-
-            document.getElementById('save-container').style.display = 'block';
-          } else {
-            previewContainer.innerHTML = `
-              <div style="margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.LG} !important;
-                   background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.STATUS.WARNING} !important;
-                   color: white !important; padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important;
-                   border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important;">
-                ⚠️ この列には書式設定がありません
-              </div>
-            `;
+          if (!fieldId || !listId) {
+            document.getElementById('format-preview').style.display = 'none';
             document.getElementById('save-container').style.display = 'none';
-          }
-
-          previewContainer.style.display = 'block';
-        } catch (error) {
-          this.showMessage('書式情報の取得に失敗しました', 'error');
-        }
-      });
-
-      document.getElementById('save-format')?.addEventListener('click', async () => {
-        const listId = document.getElementById('list-select').value;
-        const fieldId = document.getElementById('field-select').value;
-        const formatName = document.getElementById('format-name').value.trim();
-        const formatDescription = document.getElementById('format-description').value.trim();
-
-        if (!formatName) {
-          this.showMessage('書式名を入力してください', 'warning');
-          return;
-        }
-
-        try {
-          const formatJson = await this.apiClient.getColumnFormatting(listId, fieldId);
-          if (!formatJson) {
-            this.showMessage('取得可能な書式設定がありません', 'warning');
             return;
           }
 
-          const listSelect = document.getElementById('list-select');
-          const fieldSelect = document.getElementById('field-select');
+          try {
+            const formatJson = await this.apiClient.getColumnFormatting(listId, fieldId);
+            const previewContainer = document.getElementById('format-preview');
 
-          const formatData = {
-            name: formatName,
-            description: formatDescription,
-            columnType: fieldSelect.selectedOptions[0].dataset.type,
-            formatJson: formatJson,
-            sourceList: listSelect.selectedOptions[0].textContent,
-            sourceColumn: fieldSelect.selectedOptions[0].textContent.split(' (')[0],
-          };
+            if (formatJson) {
+              previewContainer.innerHTML = `
+                <div style="margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.LG} !important;">
+                  <h4 style="margin: 0 0 ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} 0 !important;
+                     color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.PRIMARY} !important;">
+                    📋 現在の書式設定:
+                  </h4>
+                  <pre style="background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BACKGROUND.SECONDARY} !important;
+                       padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important;
+                       border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important;
+                       font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.CAPTION} !important;
+                       max-height: 200px !important; overflow-y: auto !important;
+                       white-space: pre-wrap !important; word-break: break-word !important;">
+  ${Utils.escapeHtml(JSON.stringify(formatJson, null, 2))}
+                  </pre>
+                </div>
+              `;
 
-          this.formatManager.saveFormat(formatData);
-          this.showMessage('書式を保存しました', 'success');
+              // 自動で書式名を設定
+              const fieldName = document
+                .getElementById('field-select')
+                .selectedOptions[0].textContent.split(' (')[0];
+              document.getElementById('format-name').value = `${fieldName}の書式`;
 
-          setTimeout(() => this.showMainView(), 1500);
-        } catch (error) {
-          this.showMessage('書式の保存に失敗しました', 'error');
-        }
-      });
+              document.getElementById('save-container').style.display = 'block';
+            } else {
+              previewContainer.innerHTML = `
+                <div style="margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.LG} !important;
+                     background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.STATUS.WARNING} !important;
+                     color: white !important; padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important;
+                     border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important;">
+                  ⚠️ この列には書式設定がありません
+                </div>
+              `;
+              document.getElementById('save-container').style.display = 'none';
+            }
+
+            previewContainer.style.display = 'block';
+          } catch (error) {
+            this.showMessage('書式情報の取得に失敗しました', 'error');
+          }
+        });
+      }
+
+      const saveBtn = document.getElementById('save-format');
+      if (saveBtn) {
+        memoryManager.addEventListener(saveBtn, 'click', async () => {
+          const listId = document.getElementById('list-select').value;
+          const fieldId = document.getElementById('field-select').value;
+          const formatName = document.getElementById('format-name').value.trim();
+          const formatDescription = document.getElementById('format-description').value.trim();
+
+          if (!formatName) {
+            this.showMessage('書式名を入力してください', 'warning');
+            return;
+          }
+
+          try {
+            const formatJson = await this.apiClient.getColumnFormatting(listId, fieldId);
+            if (!formatJson) {
+              this.showMessage('取得可能な書式設定がありません', 'warning');
+              return;
+            }
+
+            const listSelect = document.getElementById('list-select');
+            const fieldSelect = document.getElementById('field-select');
+
+            const formatData = {
+              name: formatName,
+              description: formatDescription,
+              columnType: fieldSelect.selectedOptions[0].dataset.type,
+              formatJson: formatJson,
+              sourceList: listSelect.selectedOptions[0].textContent,
+              sourceColumn: fieldSelect.selectedOptions[0].textContent.split(' (')[0],
+            };
+
+            this.formatManager.saveFormat(formatData);
+            this.showMessage('書式を保存しました', 'success');
+
+            memoryManager.setTimeout(() => this.showMainView(), 1500);
+          } catch (error) {
+            this.showMessage('書式の保存に失敗しました', 'error');
+          }
+        });
+      }
     }
 
     // ローディングHTML生成
@@ -1369,28 +1447,37 @@ ${Utils.escapeHtml(JSON.stringify(formatJson, null, 2))}
 
     // 書式適用ビューイベント追加
     attachApplyViewEvents() {
-      document.getElementById('close-panel')?.addEventListener('click', () => {
-        document.getElementById(CONSTANTS.PANEL_ID)?.remove();
-      });
+      const closeBtn = document.getElementById('close-panel');
+      if (closeBtn) {
+        memoryManager.addEventListener(closeBtn, 'click', () => {
+          memoryManager.cleanup();
+          document.getElementById(CONSTANTS.PANEL_ID)?.remove();
+        });
+      }
 
-      document.getElementById('back-to-main')?.addEventListener('click', () => {
-        this.showMainView();
-      });
+      const backBtn = document.getElementById('back-to-main');
+      if (backBtn) {
+        memoryManager.addEventListener(backBtn, 'click', () => {
+          this.showMainView();
+        });
+      }
 
-      document.getElementById('format-select')?.addEventListener('change', e => {
-        const formatId = e.target.value;
-        const detailsContainer = document.getElementById('format-details');
-        const targetContainer = document.getElementById('target-selection');
+      const formatSelect = document.getElementById('format-select');
+      if (formatSelect) {
+        memoryManager.addEventListener(formatSelect, 'change', e => {
+          const formatId = e.target.value;
+          const detailsContainer = document.getElementById('format-details');
+          const targetContainer = document.getElementById('target-selection');
 
-        if (!formatId) {
-          detailsContainer.style.display = 'none';
-          targetContainer.style.display = 'none';
-          return;
-        }
+          if (!formatId) {
+            detailsContainer.style.display = 'none';
+            targetContainer.style.display = 'none';
+            return;
+          }
 
-        const format = this.formatManager.getFormat(formatId);
-        if (format) {
-          document.getElementById('format-info').innerHTML = `
+          const format = this.formatManager.getFormat(formatId);
+          if (format) {
+            document.getElementById('format-info').innerHTML = `
             <div style="font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.CAPTION} !important;
                  color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.SECONDARY} !important;
                  margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;">
@@ -1415,129 +1502,139 @@ ${Utils.escapeHtml(JSON.stringify(format.formatJson, null, 2))}
             </details>
           `;
 
-          detailsContainer.style.display = 'block';
-          targetContainer.style.display = 'block';
-        }
-      });
+            detailsContainer.style.display = 'block';
+            targetContainer.style.display = 'block';
+          }
+        });
+      }
 
-      document.getElementById('target-list-select')?.addEventListener('change', async e => {
-        const listId = e.target.value;
-        const fieldsContainer = document.getElementById('target-fields-container');
+      const targetListSelect = document.getElementById('target-list-select');
+      if (targetListSelect) {
+        memoryManager.addEventListener(targetListSelect, 'change', async e => {
+          const listId = e.target.value;
+          const fieldsContainer = document.getElementById('target-fields-container');
 
-        if (!listId) {
-          fieldsContainer.style.display = 'none';
-          return;
-        }
+          if (!listId) {
+            fieldsContainer.style.display = 'none';
+            return;
+          }
 
-        try {
+          try {
+            const formatId = document.getElementById('format-select').value;
+            const format = this.formatManager.getFormat(formatId);
+            const fields = await this.apiClient.getListFields(listId);
+            const compatibleFields = fields.filter(
+              field =>
+                ColumnFormatManager.normalizeColumnType(field.TypeAsString) === format.columnType
+            );
+
+            const fieldSelect = document.getElementById('target-field-select');
+            fieldSelect.innerHTML = '<option value="">列を選択してください</option>';
+
+            if (compatibleFields.length === 0) {
+              fieldSelect.innerHTML += `<option disabled>互換性のある列がありません (${format.columnType})</option>`;
+            } else {
+              compatibleFields.forEach(field => {
+                fieldSelect.innerHTML += `
+                  <option value="${field.Id}" data-internal="${field.InternalName}" data-title="${field.Title}">
+                    ${Utils.escapeHtml(field.Title)} (${field.TypeAsString})
+                  </option>
+                `;
+              });
+            }
+
+            fieldsContainer.style.display = 'block';
+          } catch (error) {
+            this.showMessage('列情報の取得に失敗しました', 'error');
+          }
+        });
+      }
+
+      const targetFieldSelect = document.getElementById('target-field-select');
+      if (targetFieldSelect) {
+        memoryManager.addEventListener(targetFieldSelect, 'change', e => {
+          const fieldId = e.target.value;
+          const mappingContainer = document.getElementById('column-mapping');
+
+          if (!fieldId) {
+            mappingContainer.style.display = 'none';
+            return;
+          }
+
+          const selectedOption = e.target.selectedOptions[0];
+          const newColumnName = selectedOption.dataset.title;
           const formatId = document.getElementById('format-select').value;
           const format = this.formatManager.getFormat(formatId);
-          const fields = await this.apiClient.getListFields(listId);
-          const compatibleFields = fields.filter(
-            field =>
-              ColumnFormatManager.normalizeColumnType(field.TypeAsString) === format.columnType
-          );
 
-          const fieldSelect = document.getElementById('target-field-select');
-          fieldSelect.innerHTML = '<option value="">列を選択してください</option>';
+          document.getElementById('mapping-info').innerHTML = `
+            <div style="font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.CAPTION} !important;">
+              <strong>元の列:</strong> ${Utils.escapeHtml(format.sourceColumn)}<br>
+              <strong>新しい列:</strong> ${Utils.escapeHtml(newColumnName)}
+            </div>
+          `;
 
-          if (compatibleFields.length === 0) {
-            fieldSelect.innerHTML += `<option disabled>互換性のある列がありません (${format.columnType})</option>`;
-          } else {
-            compatibleFields.forEach(field => {
-              fieldSelect.innerHTML += `
-                <option value="${field.Id}" data-internal="${field.InternalName}" data-title="${field.Title}">
-                  ${Utils.escapeHtml(field.Title)} (${field.TypeAsString})
-                </option>
-              `;
+          mappingContainer.style.display = 'block';
+        });
+      }
+
+      const applyFormatBtn = document.getElementById('apply-format-btn');
+      if (applyFormatBtn) {
+        memoryManager.addEventListener(applyFormatBtn, 'click', async () => {
+          const formatId = document.getElementById('format-select').value;
+          const listId = document.getElementById('target-list-select').value;
+          const fieldId = document.getElementById('target-field-select').value;
+
+          if (!formatId || !listId || !fieldId) {
+            this.showMessage('すべての項目を選択してください', 'warning');
+            return;
+          }
+
+          try {
+            const format = this.formatManager.getFormat(formatId);
+            const selectedField = document.getElementById('target-field-select').selectedOptions[0];
+            const newColumnTitle = selectedField.dataset.title; // 書式JSONの列参照を新しい列名に変更
+            let modifiedFormatJson = JSON.parse(JSON.stringify(format.formatJson));
+
+            // デバッグ用ログ
+            console.log('置換情報:', {
+              sourceColumn: format.sourceColumn,
+              newColumnTitle: newColumnTitle,
+              formatName: format.name,
+              sourceList: format.sourceList,
             });
-          }
 
-          fieldsContainer.style.display = 'block';
-        } catch (error) {
-          this.showMessage('列情報の取得に失敗しました', 'error');
-        }
-      });
+            // インポートされた書式の場合は列名置換をスキップ（より安全）
+            if (
+              format.sourceList === 'インポート' ||
+              !format.sourceColumn ||
+              format.sourceColumn.trim() === ''
+            ) {
+              console.log('インポート書式または空のsourceColumnのため置換をスキップ');
+            } else {
+              modifiedFormatJson = this.replaceColumnReferences(
+                modifiedFormatJson,
+                format.sourceColumn,
+                newColumnTitle
+              );
+            }
 
-      document.getElementById('target-field-select')?.addEventListener('change', e => {
-        const fieldId = e.target.value;
-        const mappingContainer = document.getElementById('column-mapping');
-
-        if (!fieldId) {
-          mappingContainer.style.display = 'none';
-          return;
-        }
-
-        const selectedOption = e.target.selectedOptions[0];
-        const newColumnName = selectedOption.dataset.title;
-        const formatId = document.getElementById('format-select').value;
-        const format = this.formatManager.getFormat(formatId);
-
-        document.getElementById('mapping-info').innerHTML = `
-          <div style="font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.CAPTION} !important;">
-            <strong>元の列:</strong> ${Utils.escapeHtml(format.sourceColumn)}<br>
-            <strong>新しい列:</strong> ${Utils.escapeHtml(newColumnName)}
-          </div>
-        `;
-
-        mappingContainer.style.display = 'block';
-      });
-
-      document.getElementById('apply-format-btn')?.addEventListener('click', async () => {
-        const formatId = document.getElementById('format-select').value;
-        const listId = document.getElementById('target-list-select').value;
-        const fieldId = document.getElementById('target-field-select').value;
-
-        if (!formatId || !listId || !fieldId) {
-          this.showMessage('すべての項目を選択してください', 'warning');
-          return;
-        }
-
-        try {
-          const format = this.formatManager.getFormat(formatId);
-          const selectedField = document.getElementById('target-field-select').selectedOptions[0];
-          const newColumnTitle = selectedField.dataset.title; // 書式JSONの列参照を新しい列名に変更
-          let modifiedFormatJson = JSON.parse(JSON.stringify(format.formatJson));
-
-          // デバッグ用ログ
-          console.log('置換情報:', {
-            sourceColumn: format.sourceColumn,
-            newColumnTitle: newColumnTitle,
-            formatName: format.name,
-            sourceList: format.sourceList,
-          });
-
-          // インポートされた書式の場合は列名置換をスキップ（より安全）
-          if (
-            format.sourceList === 'インポート' ||
-            !format.sourceColumn ||
-            format.sourceColumn.trim() === ''
-          ) {
-            console.log('インポート書式または空のsourceColumnのため置換をスキップ');
-          } else {
-            modifiedFormatJson = this.replaceColumnReferences(
-              modifiedFormatJson,
-              format.sourceColumn,
-              newColumnTitle
+            const success = await this.apiClient.applyColumnFormatting(
+              listId,
+              fieldId,
+              modifiedFormatJson
             );
-          }
 
-          const success = await this.apiClient.applyColumnFormatting(
-            listId,
-            fieldId,
-            modifiedFormatJson
-          );
-
-          if (success) {
-            this.showMessage('書式を適用しました', 'success');
-            setTimeout(() => this.showMainView(), 1500);
-          } else {
-            this.showMessage('書式の適用に失敗しました', 'error');
+            if (success) {
+              this.showMessage('書式を適用しました', 'success');
+              memoryManager.setTimeout(() => this.showMainView(), 1500);
+            } else {
+              this.showMessage('書式の適用に失敗しました', 'error');
+            }
+          } catch (error) {
+            this.showMessage('書式の適用中にエラーが発生しました', 'error');
           }
-        } catch (error) {
-          this.showMessage('書式の適用中にエラーが発生しました', 'error');
-        }
-      });
+        });
+      }
     }
 
     // 書式管理ビューを表示
@@ -1666,17 +1763,24 @@ ${Utils.escapeHtml(JSON.stringify(format.formatJson, null, 2))}
 
     // 書式管理ビューイベント追加
     attachManageViewEvents() {
-      document.getElementById('close-panel')?.addEventListener('click', () => {
-        document.getElementById(CONSTANTS.PANEL_ID)?.remove();
-      });
+      const closeBtn = document.getElementById('close-panel');
+      if (closeBtn) {
+        memoryManager.addEventListener(closeBtn, 'click', () => {
+          memoryManager.cleanup();
+          document.getElementById(CONSTANTS.PANEL_ID)?.remove();
+        });
+      }
 
-      document.getElementById('back-to-main')?.addEventListener('click', () => {
-        this.showMainView();
-      });
+      const backBtn = document.getElementById('back-to-main');
+      if (backBtn) {
+        memoryManager.addEventListener(backBtn, 'click', () => {
+          this.showMainView();
+        });
+      }
 
       // 編集ボタンのイベント
       document.querySelectorAll('.edit-format').forEach(button => {
-        button.addEventListener('click', e => {
+        memoryManager.addEventListener(button, 'click', e => {
           const formatId = e.target.dataset.id;
           this.showEditFormatDialog(formatId);
         });
@@ -1684,7 +1788,7 @@ ${Utils.escapeHtml(JSON.stringify(format.formatJson, null, 2))}
 
       // コピーボタンのイベント
       document.querySelectorAll('.copy-format').forEach(button => {
-        button.addEventListener('click', async e => {
+        memoryManager.addEventListener(button, 'click', async e => {
           const formatId = e.target.dataset.id;
           const success = await this.formatManager.copyFormatToClipboard(formatId);
 
@@ -1694,7 +1798,7 @@ ${Utils.escapeHtml(JSON.stringify(format.formatJson, null, 2))}
             // ボタンを一時的に変更
             const originalText = e.target.textContent;
             e.target.textContent = '✓';
-            setTimeout(() => {
+            memoryManager.setTimeout(() => {
               e.target.textContent = originalText;
             }, 1000);
           } else {
@@ -1705,7 +1809,7 @@ ${Utils.escapeHtml(JSON.stringify(format.formatJson, null, 2))}
 
       // 削除ボタンのイベント
       document.querySelectorAll('.delete-format').forEach(button => {
-        button.addEventListener('click', e => {
+        memoryManager.addEventListener(button, 'click', e => {
           const formatId = e.target.dataset.id;
           const format = this.formatManager.getFormat(formatId);
 
@@ -1714,11 +1818,11 @@ ${Utils.escapeHtml(JSON.stringify(format.formatJson, null, 2))}
             this.showMessage('書式を削除しました', 'success');
 
             // ビューを再表示
-            setTimeout(() => this.showManageView(), 1000);
+            memoryManager.setTimeout(() => this.showManageView(), 1000);
           }
         });
       });
-    } // 列参照を置換する
+    }
     replaceColumnReferences(obj, oldColumnName, newColumnName) {
       // より厳密な置換条件チェック
       if (
@@ -1886,45 +1990,56 @@ ${Utils.escapeHtml(JSON.stringify(format.formatJson, null, 2))}
       const dialog = document.getElementById('edit-format-dialog');
 
       // 閉じるボタン
-      document.getElementById('close-edit-dialog')?.addEventListener('click', () => {
-        dialog?.remove();
-      });
+      const closeBtn = document.getElementById('close-edit-dialog');
+      if (closeBtn) {
+        memoryManager.addEventListener(closeBtn, 'click', () => {
+          dialog?.remove();
+        });
+      }
 
       // キャンセルボタン
-      document.getElementById('cancel-edit')?.addEventListener('click', () => {
-        dialog?.remove();
-      });
+      const cancelBtn = document.getElementById('cancel-edit');
+      if (cancelBtn) {
+        memoryManager.addEventListener(cancelBtn, 'click', () => {
+          dialog?.remove();
+        });
+      }
 
       // 保存ボタン
-      document.getElementById('save-edit')?.addEventListener('click', () => {
-        const name = document.getElementById('edit-format-name')?.value.trim();
-        const description = document.getElementById('edit-format-description')?.value.trim();
+      const saveBtn = document.getElementById('save-edit');
+      if (saveBtn) {
+        memoryManager.addEventListener(saveBtn, 'click', () => {
+          const name = document.getElementById('edit-format-name')?.value.trim();
+          const description = document.getElementById('edit-format-description')?.value.trim();
 
-        if (!name) {
-          this.showMessage('書式名を入力してください', 'error');
-          return;
-        }
+          if (!name) {
+            this.showMessage('書式名を入力してください', 'error');
+            return;
+          }
 
-        // 書式を更新
-        const success = this.formatManager.updateFormat(formatId, { name, description });
+          // 書式を更新
+          const success = this.formatManager.updateFormat(formatId, { name, description });
 
-        if (success) {
-          this.showMessage('書式を更新しました', 'success');
-          dialog?.remove();
+          if (success) {
+            this.showMessage('書式を更新しました', 'success');
+            dialog?.remove();
 
-          // 管理画面を再表示
-          setTimeout(() => this.showManageView(), 1000);
-        } else {
-          this.showMessage('更新に失敗しました', 'error');
-        }
-      });
+            // 管理画面を再表示
+            memoryManager.setTimeout(() => this.showManageView(), 1000);
+          } else {
+            this.showMessage('更新に失敗しました', 'error');
+          }
+        });
+      }
 
       // 背景クリックで閉じる
-      dialog?.addEventListener('click', e => {
-        if (e.target === dialog) {
-          dialog?.remove();
-        }
-      });
+      if (dialog) {
+        memoryManager.addEventListener(dialog, 'click', e => {
+          if (e.target === dialog) {
+            dialog?.remove();
+          }
+        });
+      }
     }
   }
 
