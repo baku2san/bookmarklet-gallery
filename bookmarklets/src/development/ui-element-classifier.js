@@ -111,7 +111,7 @@ javascript: (function () {
       DARK: '#343a40',
       // 要素タイプ別カラー（新しい5分類システム）
       NAVIGATION: '#6f42c1', // 紫色 - ナビゲーション
-      ACTION: '#ff6b35', // オレンジ赤 - アクション
+      ACTION: '#007bff', // 青色 - アクション（赤と見分けやすく）
       FORM: '#28a745', // 緑色 - フォーム要素
       TOGGLE: '#ffc107', // 黄色 - 切り替え
       UNKNOWN: '#dc3545', // 赤色 - 分類不明
@@ -141,10 +141,15 @@ javascript: (function () {
       };
       this.originalStyles = new Map();
       this.hoverListeners = new Map(); // ホバーイベントリスナーを管理
+      this.previewHoverListeners = new Map(); // 常時プレビューホバーリスナーを管理
+      this.isPreviewModeEnabled = false; // プレビューモードの状態
     }
 
     // 要素を検索・分類
     classifyElements() {
+      // 無効な要素をクリーンアップ
+      this.cleanupInvalidElements();
+
       // デバッグモードの設定
       const debugMode = this._isDebugMode();
 
@@ -618,6 +623,186 @@ javascript: (function () {
       });
       return stats;
     }
+
+    // プレビューホバーエフェクトを有効化
+    enablePreviewHover() {
+      this.isPreviewModeEnabled = true;
+      Object.entries(this.classifications).forEach(([type, elements]) => {
+        elements.forEach(({ element }) => {
+          this.addPreviewHoverEffect(element, type);
+        });
+      });
+    }
+
+    // プレビューホバーエフェクトを無効化
+    disablePreviewHover() {
+      this.isPreviewModeEnabled = false;
+      this.previewHoverListeners.forEach((listeners, element) => {
+        element.removeEventListener('mouseenter', listeners.mouseenter);
+        element.removeEventListener('mouseleave', listeners.mouseleave);
+
+        // タイマーがあればクリア
+        if (listeners.timerManager) {
+          listeners.timerManager.clearTimer();
+        }
+
+        // 一時的なスタイルがあれば元に戻す
+        if (element._tempPreviewStyles) {
+          Object.assign(element.style, element._tempPreviewStyles);
+          delete element._tempPreviewStyles;
+        }
+
+        // 必要に応じて即座にリセット
+        if (listeners.resetHoverEffect) {
+          listeners.resetHoverEffect();
+        }
+      });
+      this.previewHoverListeners.clear();
+    } // プレビューホバーエフェクトを追加
+    addPreviewHoverEffect(element, type) {
+      // 既存のプレビューホバーリスナーを削除
+      this.removePreviewHoverListeners(element);
+
+      const colorMap = {
+        navigation: DESIGN_SYSTEM.COLORS.NAVIGATION,
+        action: DESIGN_SYSTEM.COLORS.ACTION,
+        form: DESIGN_SYSTEM.COLORS.FORM,
+        toggle: DESIGN_SYSTEM.COLORS.TOGGLE,
+        unknown: DESIGN_SYSTEM.COLORS.UNKNOWN,
+      };
+
+      const color = colorMap[type] || DESIGN_SYSTEM.COLORS.SECONDARY;
+
+      // タイマーを外部で管理するためのオブジェクト
+      const timerManager = {
+        autoResetTimer: null,
+        clearTimer: function () {
+          if (this.autoResetTimer) {
+            clearTimeout(this.autoResetTimer);
+            this.autoResetTimer = null;
+          }
+        },
+      };
+
+      const applyHoverEffect = () => {
+        if (!this.originalStyles.has(element)) {
+          // 現在のスタイルを一時保存
+          const tempStyles = {
+            outline: element.style.outline,
+            backgroundColor: element.style.backgroundColor,
+            boxShadow: element.style.boxShadow,
+            transform: element.style.transform,
+            transition: element.style.transition,
+            filter: element.style.filter,
+          };
+
+          // 薄い背景色とボーダーでプレビュー表示
+          element.style.backgroundColor = `${color}15`; // 透明度15%（少し濃く）
+          element.style.outline = `2px solid ${color}50`; // 透明度50%（少し濃く）
+          element.style.boxShadow = `0 0 8px ${color}40, inset 0 0 20px ${color}10`; // より目立つグロー
+          element.style.transform = 'scale(1.02)'; // 少し大きく
+          element.style.transition = 'all 0.2s ease-out';
+          element.style.filter = 'brightness(1.08)'; // より明度アップ
+
+          // 一時的にスタイルを保存
+          element._tempPreviewStyles = tempStyles;
+        }
+      };
+
+      const resetHoverEffect = () => {
+        if (!this.originalStyles.has(element) && element._tempPreviewStyles) {
+          // プレビュー前のスタイルに戻す（スムーズなアニメーション付き）
+          element.style.transition = 'all 0.3s ease-in';
+          Object.assign(element.style, element._tempPreviewStyles);
+          delete element._tempPreviewStyles;
+        }
+        // タイマーをクリア
+        timerManager.clearTimer();
+      };
+
+      const mouseEnterHandler = e => {
+        // 既存のタイマーをクリア
+        timerManager.clearTimer();
+
+        applyHoverEffect();
+
+        // 2秒後に自動的に元に戻す
+        timerManager.autoResetTimer = setTimeout(() => {
+          resetHoverEffect();
+        }, 2000);
+      };
+
+      const mouseLeaveHandler = e => {
+        // ホバーが外れたら即座に元に戻す
+        resetHoverEffect();
+      };
+
+      element.addEventListener('mouseenter', mouseEnterHandler);
+      element.addEventListener('mouseleave', mouseLeaveHandler);
+
+      // リスナーを保存（タイマー管理オブジェクトも含める）
+      this.previewHoverListeners.set(element, {
+        mouseenter: mouseEnterHandler,
+        mouseleave: mouseLeaveHandler,
+        timerManager: timerManager,
+        resetHoverEffect: resetHoverEffect, // 直接参照を保存
+      });
+    }
+
+    // プレビューホバーリスナーを削除
+    removePreviewHoverListeners(element) {
+      const listeners = this.previewHoverListeners.get(element);
+      if (listeners) {
+        element.removeEventListener('mouseenter', listeners.mouseenter);
+        element.removeEventListener('mouseleave', listeners.mouseleave);
+
+        // タイマーがあればクリア
+        if (listeners.timerManager) {
+          listeners.timerManager.clearTimer();
+        }
+
+        // 一時的なスタイルがあれば元に戻す
+        if (element._tempPreviewStyles) {
+          Object.assign(element.style, element._tempPreviewStyles);
+          delete element._tempPreviewStyles;
+        }
+
+        // 必要に応じて即座にリセット
+        if (listeners.resetHoverEffect) {
+          listeners.resetHoverEffect();
+        }
+
+        this.previewHoverListeners.delete(element);
+      }
+    }
+
+    // 無効になった要素をクリーンアップ
+    cleanupInvalidElements() {
+      // 無効な要素のプレビューホバーリスナーをクリーンアップ
+      this.previewHoverListeners.forEach((listeners, element) => {
+        if (!document.contains(element)) {
+          // 要素がDOMから削除されている場合
+          if (listeners.timerManager) {
+            listeners.timerManager.clearTimer();
+          }
+          this.previewHoverListeners.delete(element);
+        }
+      });
+
+      // 無効な要素のハイライトもクリーンアップ
+      this.originalStyles.forEach((styles, element) => {
+        if (!document.contains(element)) {
+          this.originalStyles.delete(element);
+        }
+      });
+
+      // 無効な要素のホバーリスナーもクリーンアップ
+      this.hoverListeners.forEach((listeners, element) => {
+        if (!document.contains(element)) {
+          this.hoverListeners.delete(element);
+        }
+      });
+    }
   }
 
   // UIマネージャークラス
@@ -634,6 +819,7 @@ javascript: (function () {
       this.currentUrl = window.location.href; // 現在のURL
       this.urlCheckInterval = null; // URL監視用インターバル
       this.isAutoRefreshEnabled = true; // 自動再分析の有効/無効
+      this.isPreviewModeEnabled = false; // プレビューモードの有効/無効
     }
 
     // メインパネルを作成
@@ -771,10 +957,15 @@ javascript: (function () {
               📋 結果コピー
             </button>
           </div>
-          <div style="display: flex !important; gap: 8px !important; flex-wrap: wrap !important;">
+          <div style="display: flex !important; gap: 8px !important; flex-wrap: wrap !important; margin-bottom: 10px !important;">
+            <button id="toggle-preview-hover" style="background: #8e44ad !important; color: white !important; border: none !important; border-radius: 6px !important; padding: 8px 12px !important; cursor: pointer !important; font-size: 12px !important; flex: 1 !important;" title="ホバー時の色プレビューのオン/オフ">
+              ✨ プレビュー: OFF
+            </button>
             <button id="refresh-analysis" style="background: ${DESIGN_SYSTEM.COLORS.PRIMARY} !important; color: white !important; border: none !important; border-radius: 6px !important; padding: 8px 12px !important; cursor: pointer !important; font-size: 12px !important; flex: 1 !important;" title="手動で再分析を実行">
               🔄 再分析
             </button>
+          </div>
+          <div style="display: flex !important; gap: 8px !important; flex-wrap: wrap !important;">
             <button id="toggle-auto-refresh" style="background: ${DESIGN_SYSTEM.COLORS.SECONDARY} !important; color: white !important; border: none !important; border-radius: 6px !important; padding: 8px 12px !important; cursor: pointer !important; font-size: 12px !important; flex: 1 !important;" title="ページ遷移時の自動再分析のオン/オフ">
               🔁 自動更新: ON
             </button>
@@ -845,10 +1036,13 @@ javascript: (function () {
       // 閉じるボタン
       this.panel.querySelector('#classifier-close').addEventListener('click', () => {
         this.stopUrlMonitoring(); // URL監視を停止
-        this.panel.remove();
         if (this.isHighlighted) {
           this.classifier.removeHighlights();
         }
+        if (this.isPreviewModeEnabled) {
+          this.classifier.disablePreviewHover();
+        }
+        this.panel.remove();
       });
 
       // 最小化ボタン
@@ -904,6 +1098,11 @@ javascript: (function () {
       // 自動更新トグルボタン
       this.panel.querySelector('#toggle-auto-refresh').addEventListener('click', () => {
         this.toggleAutoRefresh();
+      });
+
+      // プレビューモードトグルボタン
+      this.panel.querySelector('#toggle-preview-hover').addEventListener('click', () => {
+        this.togglePreviewMode();
       });
 
       // 分類項目のクリックイベント
@@ -1265,6 +1464,14 @@ RECOMMENDATIONS
           this.classifier.removeHighlights();
         }
 
+        // 現在のプレビューモード状態を保存
+        const wasPreviewModeEnabled = this.isPreviewModeEnabled;
+
+        // プレビューモードが有効な場合は一旦無効化
+        if (wasPreviewModeEnabled) {
+          this.classifier.disablePreviewHover();
+        }
+
         // 分類器をリセット
         this.classifier = new UIElementClassifier();
 
@@ -1274,6 +1481,13 @@ RECOMMENDATIONS
 
         // パネルのコンテンツを更新
         this.updatePanelContent(stats, classifications);
+
+        // プレビューモードの状態を復元
+        if (wasPreviewModeEnabled) {
+          this.isPreviewModeEnabled = true;
+          this.classifier.enablePreviewHover();
+          this.updatePreviewModeButtonDisplay();
+        }
 
         // 状態をリセット
         this.isHighlighted = false;
@@ -1308,6 +1522,8 @@ RECOMMENDATIONS
 
         // イベントリスナーを再設定
         this.reattachContentEventListeners();
+
+        // 注意: プレビューモードの復元は refreshAnalysis で行うため、ここでは行わない
       }
     }
 
@@ -1372,6 +1588,16 @@ RECOMMENDATIONS
         this.updateAutoRefreshButtonDisplay();
       }
 
+      // プレビューモードトグルボタン
+      const previewBtn = this.panel.querySelector('#toggle-preview-hover');
+      if (previewBtn) {
+        previewBtn.addEventListener('click', () => {
+          this.togglePreviewMode();
+        });
+        // ボタンの表示を現在の状態に合わせて更新
+        this.updatePreviewModeButtonDisplay();
+      }
+
       // 分類項目のクリックイベント
       this.setupTypeItemClickEvents();
     }
@@ -1399,15 +1625,40 @@ RECOMMENDATIONS
     updateAutoRefreshButtonDisplay() {
       const autoRefreshBtn = this.panel.querySelector('#toggle-auto-refresh');
       if (autoRefreshBtn) {
-        if (this.isAutoRefreshEnabled) {
-          autoRefreshBtn.textContent = '🔁 自動更新: ON';
-          autoRefreshBtn.style.background = DESIGN_SYSTEM.COLORS.SUCCESS;
-          autoRefreshBtn.title = 'ページ遷移時の自動再分析を無効にする';
-        } else {
-          autoRefreshBtn.textContent = '⏹️ 自動更新: OFF';
-          autoRefreshBtn.style.background = DESIGN_SYSTEM.COLORS.SECONDARY;
-          autoRefreshBtn.title = 'ページ遷移時の自動再分析を有効にする';
-        }
+        autoRefreshBtn.textContent = `🔁 自動更新: ${this.isAutoRefreshEnabled ? 'ON' : 'OFF'}`;
+        autoRefreshBtn.style.background = this.isAutoRefreshEnabled
+          ? DESIGN_SYSTEM.COLORS.SECONDARY
+          : DESIGN_SYSTEM.COLORS.WARNING;
+      }
+    }
+
+    /**
+     * プレビューモードの切り替え
+     */
+    togglePreviewMode() {
+      this.isPreviewModeEnabled = !this.isPreviewModeEnabled;
+
+      if (this.isPreviewModeEnabled) {
+        this.classifier.enablePreviewHover();
+        this.showNotification('✨ プレビューモードを有効にしました', 'success');
+      } else {
+        this.classifier.disablePreviewHover();
+        this.showNotification('✨ プレビューモードを無効にしました', 'info');
+      }
+
+      this.updatePreviewModeButtonDisplay();
+    }
+
+    /**
+     * プレビューモードボタンの表示を更新
+     */
+    updatePreviewModeButtonDisplay() {
+      const previewBtn = this.panel.querySelector('#toggle-preview-hover');
+      if (previewBtn) {
+        previewBtn.textContent = `✨ プレビュー: ${this.isPreviewModeEnabled ? 'ON' : 'OFF'}`;
+        previewBtn.style.background = this.isPreviewModeEnabled
+          ? '#27ae60' // 緑色（有効）
+          : '#8e44ad'; // 紫色（無効）
       }
     }
   }
