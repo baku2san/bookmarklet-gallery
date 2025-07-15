@@ -450,6 +450,9 @@ javascript: (() => {
       this.apiBaseUrl = `${siteInfo.baseUrl}/_api`;
     }
 
+    // 書式の事前検証（プレビュー用）
+
+
     // リスト一覧を取得
     async getLists() {
       try {
@@ -475,11 +478,11 @@ javascript: (() => {
       }
     }
 
-    // リストの列情報を取得
+    // リストの列情報を取得（詳細な型情報付き）
     async getListFields(listId) {
       try {
         const response = await fetch(
-          `${this.apiBaseUrl}/web/lists('${listId}')/fields?$select=Id,Title,InternalName,TypeAsString,SchemaXml&$filter=Hidden eq false and ReadOnlyField eq false`,
+          `${this.apiBaseUrl}/web/lists('${listId}')/fields?$select=Id,Title,InternalName,TypeAsString,TypeDisplayName,TypeShortDescription,SchemaXml,FieldTypeKind,MaxLength,Required,Indexed,EnforceUniqueValues,Choices,LookupList,LookupField&$filter=Hidden eq false and ReadOnlyField eq false`,
           {
             method: 'GET',
             headers: {
@@ -493,11 +496,237 @@ javascript: (() => {
         }
 
         const data = await response.json();
-        return data.d.results;
+
+        // 各フィールドに詳細な型情報を追加
+        return data.d.results.map(field => ({
+          ...field,
+          DetailedType: this.getDetailedFieldType(field),
+          FormattingCompatibility: this.getFormattingCompatibility(field),
+        }));
       } catch (error) {
         console.error('列情報取得エラー:', error);
         return [];
       }
+    }
+
+    // 詳細な列型情報を取得
+    getDetailedFieldType(field) {
+      const baseType = field.TypeAsString;
+      const fieldTypeKind = field.FieldTypeKind;
+
+      // より詳細な型分類
+      const detailedTypeInfo = {
+        baseType: baseType,
+        category: this.getFieldCategory(baseType, fieldTypeKind),
+        displayName: this.getFieldDisplayName(baseType, field),
+        isMultiValue: this.isMultiValueField(baseType),
+        supportedFormats: this.getSupportedFormats(baseType, fieldTypeKind),
+        constraints: this.getFieldConstraints(field),
+      };
+
+      return detailedTypeInfo;
+    }
+
+    // フィールドカテゴリを取得
+    getFieldCategory(typeAsString, fieldTypeKind) {
+      const categoryMap = {
+        // テキスト系
+        Text: 'text',
+        Note: 'text',
+        Guid: 'text',
+
+        // 数値系
+        Number: 'numeric',
+        Currency: 'numeric',
+        Integer: 'numeric',
+        Counter: 'numeric',
+
+        // 日時系
+        DateTime: 'datetime',
+
+        // 選択系
+        Choice: 'choice',
+        MultiChoice: 'choice',
+        Boolean: 'choice',
+
+        // 参照系
+        Lookup: 'reference',
+        LookupMulti: 'reference',
+        User: 'reference',
+        UserMulti: 'reference',
+
+        // リッチ系
+        URL: 'rich',
+        File: 'rich',
+        Attachments: 'rich',
+
+        // 計算系
+        Calculated: 'computed',
+        Computed: 'computed',
+
+        // 分類系
+        TaxonomyFieldType: 'taxonomy',
+        TaxonomyFieldTypeMulti: 'taxonomy',
+      };
+
+      return categoryMap[typeAsString] || 'other';
+    }
+
+    // フィールド表示名を取得
+    getFieldDisplayName(typeAsString, field) {
+      const displayNameMap = {
+        Text: '1行テキスト',
+        Note: '複数行テキスト',
+        Number: '数値',
+        Currency: '通貨',
+        DateTime: '日付と時刻',
+        Boolean: 'はい/いいえ',
+        Choice: '選択肢',
+        MultiChoice: '選択肢（複数選択可）',
+        Lookup: '参照',
+        LookupMulti: '参照（複数値）',
+        User: 'ユーザーまたはグループ',
+        UserMulti: 'ユーザーまたはグループ（複数値）',
+        URL: 'ハイパーリンク',
+        Calculated: '計算値',
+        TaxonomyFieldType: '管理メタデータ',
+        TaxonomyFieldTypeMulti: '管理メタデータ（複数値）',
+      };
+
+      return displayNameMap[typeAsString] || typeAsString;
+    }
+
+    // 複数値フィールドかどうか判定
+    isMultiValueField(typeAsString) {
+      const multiValueTypes = ['MultiChoice', 'LookupMulti', 'UserMulti', 'TaxonomyFieldTypeMulti'];
+      return multiValueTypes.includes(typeAsString);
+    }
+
+    // サポートされる書式タイプを取得
+    getSupportedFormats(typeAsString, fieldTypeKind) {
+      const formatSupport = {
+        Text: ['text', 'icon', 'link', 'image'],
+        Note: ['text', 'html'],
+        Number: ['number', 'bar', 'icon', 'trend'],
+        Currency: ['currency', 'bar', 'icon'],
+        DateTime: ['date', 'relative', 'icon'],
+        Boolean: ['icon', 'text'],
+        Choice: ['text', 'icon', 'pill'],
+        MultiChoice: ['pills', 'icons'],
+        User: ['person', 'icon'],
+        UserMulti: ['people', 'icons'],
+        Lookup: ['text', 'link', 'icon'],
+        URL: ['link', 'icon'],
+        Calculated: ['auto'], // 計算結果の型に依存
+      };
+
+      return formatSupport[typeAsString] || ['text'];
+    }
+
+    // フィールド制約情報を取得
+    getFieldConstraints(field) {
+      return {
+        required: field.Required || false,
+        maxLength: field.MaxLength || null,
+        indexed: field.Indexed || false,
+        unique: field.EnforceUniqueValues || false,
+        choices: field.Choices ? field.Choices.results : null,
+        lookupList: field.LookupList || null,
+        lookupField: field.LookupField || null,
+      };
+    }
+
+    // 書式互換性情報を取得
+    getFormattingCompatibility(field) {
+      const detailedType = this.getDetailedFieldType(field);
+
+      return {
+        canReceiveFormats: this.canReceiveFormats(field.TypeAsString),
+        canProvideFormats: this.canProvideFormats(field.TypeAsString),
+        compatibleTypes: this.getCompatibleTypes(field.TypeAsString),
+        riskLevel: this.getCompatibilityRisk(field.TypeAsString, detailedType),
+      };
+    }
+
+    // 書式を受け取れるかどうか
+    canReceiveFormats(typeAsString) {
+      // 読み取り専用や計算フィールドは書式適用不可
+      const readOnlyTypes = ['Counter', 'Computed', 'Calculated'];
+      return !readOnlyTypes.includes(typeAsString);
+    }
+
+    // 書式を提供できるかどうか
+    canProvideFormats(typeAsString) {
+      // すべての表示可能フィールドは書式提供可能
+      return true;
+    }
+
+    // 互換性のある型を取得
+    getCompatibleTypes(typeAsString) {
+      const compatibilityGroups = {
+        text: ['Text', 'Note', 'Guid'],
+        numeric: ['Number', 'Currency', 'Integer'],
+        choice: ['Choice', 'MultiChoice', 'Boolean'],
+        reference: ['Lookup', 'LookupMulti', 'User', 'UserMulti'],
+        datetime: ['DateTime'],
+        url: ['URL'],
+        taxonomy: ['TaxonomyFieldType', 'TaxonomyFieldTypeMulti'],
+      };
+
+      for (const [group, types] of Object.entries(compatibilityGroups)) {
+        if (types.includes(typeAsString)) {
+          return types;
+        }
+      }
+
+      return [typeAsString]; // 自分自身のみ互換
+    }
+
+    // 互換性リスクレベルを取得
+    getCompatibilityRisk(typeAsString, detailedType) {
+      const risks = [];
+      let riskLevel = 'low';
+
+      // 複数値フィールドは高リスク
+      if (detailedType.isMultiValue) {
+        risks.push('複数値フィールド：配列データ構造のため書式エラーの可能性');
+        riskLevel = 'high';
+      }
+
+      // 参照フィールドは中リスク
+      if (detailedType.category === 'reference') {
+        risks.push('参照フィールド：データ構造の違いによる表示エラーの可能性');
+        if (riskLevel !== 'high') riskLevel = 'medium';
+      }
+
+      // 計算フィールドは中リスク
+      if (typeAsString === 'Calculated') {
+        risks.push('計算フィールド：計算結果の型に依存するため予期しない動作の可能性');
+        if (riskLevel !== 'high') riskLevel = 'medium';
+      }
+
+      // 読み取り専用フィールドは適用不可
+      if (!this.canReceiveFormats(typeAsString)) {
+        risks.push('読み取り専用フィールド：書式適用不可');
+        riskLevel = 'blocked';
+      }
+
+      return {
+        level: riskLevel,
+        reasons: risks,
+        description: this.getRiskDescription(riskLevel),
+      };
+    }
+
+    // リスクレベルの説明を取得
+    getRiskDescription(riskLevel) {
+      const descriptions = {
+        low: '安全：同じ型カテゴリ内での適用のため、問題が発生する可能性は低いです',
+        medium: '注意：データ構造の違いにより、書式が正しく表示されない可能性があります',
+        high: '危険：書式エラーやデータ表示の問題が発生する可能性が高いです',
+        blocked: '不可：このフィールドには書式を適用できません',
+      };
+      return descriptions[riskLevel] || '不明なリスクレベル';
     }
 
     // デフォルトビューで表示される列のみを取得
@@ -1261,10 +1490,28 @@ javascript: (() => {
                 document.getElementById('list-select').selectedOptions[0].textContent;
               fieldSelect.innerHTML += `<option disabled>--- ${Utils.escapeHtml(listTitle)} (${Utils.escapeHtml(viewInfo.viewTitle)}: ${viewInfo.fields.length}/${viewInfo.viewFieldCount}列) ---</option>`;
               viewInfo.fields.forEach(field => {
-                const normalizedType = ColumnFormatManager.normalizeColumnType(field.TypeAsString);
+                const detailedType = field.DetailedType || {
+                  displayName: field.TypeAsString,
+                  supportedFormats: [],
+                };
+                const compatibility = field.FormattingCompatibility || { riskLevel: 'medium' };
+
+                // リスクレベルに応じたアイコン
+                const riskIcon =
+                  {
+                    low: '🟢',
+                    medium: '🟡',
+                    high: '🔴',
+                  }[compatibility.riskLevel] || '⚪';
+
                 fieldSelect.innerHTML += `
-                  <option value="${field.Id}" data-type="${normalizedType}" data-original-type="${field.TypeAsString}">
-                    ${Utils.escapeHtml(field.Title)} (${normalizedType})
+                  <option value="${field.Id}"
+                          data-type="${detailedType.baseType}"
+                          data-category="${detailedType.category}"
+                          data-risk="${compatibility.riskLevel}"
+                          data-formats="${detailedType.supportedFormats.join(',')}"
+                          title="サポート書式: ${detailedType.supportedFormats.join(', ')}">
+                    ${riskIcon} ${Utils.escapeHtml(field.Title)} (${detailedType.displayName})
                   </option>
                 `;
               });
@@ -1694,10 +1941,25 @@ ${Utils.escapeHtml(JSON.stringify(format.formatJson, null, 2))}
             const formatId = document.getElementById('format-select').value;
             const format = this.formatManager.getFormat(formatId);
             const fields = await this.apiClient.getListFields(listId);
-            const compatibleFields = fields.filter(
-              field =>
-                ColumnFormatManager.normalizeColumnType(field.TypeAsString) === format.columnType
-            );
+            // より高度な互換性チェック
+            const compatibleFields = fields.filter(field => {
+              const detailedType = field.DetailedType || { baseType: field.TypeAsString };
+              const compatibility = field.FormattingCompatibility || {};
+
+              // 基本的な型互換性チェック
+              const isBasicCompatible =
+                compatibility.compatibleTypes &&
+                compatibility.compatibleTypes.includes(format.columnType);
+
+              // 従来の正規化による互換性チェック（フォールバック）
+              const isLegacyCompatible =
+                ColumnFormatManager.normalizeColumnType(field.TypeAsString) === format.columnType;
+
+              // 書式受信可能かチェック
+              const canReceive = compatibility.canReceiveFormats !== false;
+
+              return (isBasicCompatible || isLegacyCompatible) && canReceive;
+            });
 
             const fieldSelect = document.getElementById('target-field-select');
             fieldSelect.innerHTML = '<option value="">列を選択してください</option>';
