@@ -9,7 +9,7 @@
  * - クリップボード経由での書式共有
  */
 
-javascript: (() => {
+(() => {
   'use strict';
 
   // =============================================================================
@@ -451,7 +451,468 @@ javascript: (() => {
     }
 
     // 書式の事前検証（プレビュー用）
+    validateFormatCompatibility(formatJson, sourceField, targetField) {
+      const validation = {
+        isCompatible: true,
+        warnings: [],
+        errors: [],
+        suggestions: [],
+        previewData: null,
+      };
 
+      try {
+        // 1. データ構造の違いをチェック
+        const structureCheck = this.checkDataStructure(sourceField, targetField);
+        validation.warnings.push(...structureCheck.warnings);
+        validation.errors.push(...structureCheck.errors);
+
+        // 2. 書式構文の検証
+        const syntaxCheck = this.validateFormatSyntax(formatJson, targetField);
+        validation.warnings.push(...syntaxCheck.warnings);
+        validation.errors.push(...syntaxCheck.errors);
+
+        // 3. サンプルデータでのプレビュー生成
+        const previewData = this.generateFormatPreview(formatJson, targetField);
+        validation.previewData = previewData;
+
+        // 4. 自動修正の提案
+        if (validation.errors.length > 0) {
+          const suggestions = this.generateAutoFixSuggestions(formatJson, sourceField, targetField);
+          validation.suggestions = suggestions;
+        }
+
+        validation.isCompatible = validation.errors.length === 0;
+      } catch (error) {
+        validation.errors.push(`検証中にエラーが発生しました: ${error.message}`);
+        validation.isCompatible = false;
+      }
+
+      return validation;
+    }
+
+    // データ構造の違いをチェック
+    checkDataStructure(sourceField, targetField) {
+      const warnings = [];
+      const errors = [];
+
+      // 複数値フィールドのチェック
+      if (sourceField.DetailedType?.isMultiValue !== targetField.DetailedType?.isMultiValue) {
+        if (targetField.DetailedType?.isMultiValue) {
+          errors.push('単一値用の書式を複数値フィールドに適用しようとしています');
+          errors.push('配列データ構造のため、書式が正しく動作しない可能性があります');
+        } else {
+          warnings.push('複数値用の書式を単一値フィールドに適用しようとしています');
+        }
+      }
+
+      // 参照フィールドのプロパティチェック
+      if (sourceField.TypeAsString !== targetField.TypeAsString) {
+        const sourceProps = this.getFieldProperties(sourceField.TypeAsString);
+        const targetProps = this.getFieldProperties(targetField.TypeAsString);
+
+        const missingProps = sourceProps.filter(prop => !targetProps.includes(prop));
+        if (missingProps.length > 0) {
+          errors.push(
+            `対象フィールドに存在しないプロパティが使用されています: ${missingProps.join(', ')}`
+          );
+        }
+      }
+
+      return { warnings, errors };
+    }
+
+    // フィールドタイプ別のプロパティを取得
+    getFieldProperties(typeAsString) {
+      const propertyMap = {
+        Lookup: ['lookupId', 'lookupValue'],
+        LookupMulti: ['lookupId', 'lookupValue'], // 配列形式
+        User: ['id', 'title', 'email', 'picture'],
+        UserMulti: ['id', 'title', 'email', 'picture'], // 配列形式
+        Choice: [], // 直接値
+        MultiChoice: [], // 配列形式
+        Text: [],
+        Note: [],
+        Number: [],
+        Currency: [],
+        DateTime: [],
+        Boolean: [],
+      };
+
+      return propertyMap[typeAsString] || [];
+    }
+
+    // 書式構文の検証
+    validateFormatSyntax(formatJson, targetField) {
+      const warnings = [];
+      const errors = [];
+
+      try {
+        // JSON構文の基本チェック
+        const jsonString = JSON.stringify(formatJson);
+
+        // フィールド参照の検証
+        const fieldReferences = this.extractFieldReferences(jsonString);
+        for (const fieldRef of fieldReferences) {
+          const validationResult = this.validateFieldReference(fieldRef, targetField);
+          warnings.push(...validationResult.warnings);
+          errors.push(...validationResult.errors);
+        }
+
+        // 式の構文チェック
+        const expressions = this.extractExpressions(jsonString);
+        for (const expr of expressions) {
+          const exprValidation = this.validateExpression(expr, targetField);
+          warnings.push(...exprValidation.warnings);
+          errors.push(...exprValidation.errors);
+        }
+      } catch (error) {
+        errors.push(`JSON構文エラー: ${error.message}`);
+      }
+
+      return { warnings, errors };
+    }
+
+    // フィールド参照を抽出
+    extractFieldReferences(jsonString) {
+      const regex = /\[\$([^\]]+)\]/g;
+      const references = [];
+      let match;
+
+      while ((match = regex.exec(jsonString)) !== null) {
+        references.push(match[1]);
+      }
+
+      return [...new Set(references)]; // 重複除去
+    }
+
+    // フィールド参照の検証
+    validateFieldReference(fieldRef, targetField) {
+      const warnings = [];
+      const errors = [];
+
+      // プロパティアクセスのチェック（例: Field.lookupValue）
+      if (fieldRef.includes('.')) {
+        const [, property] = fieldRef.split('.');
+        const availableProps = this.getFieldProperties(targetField.TypeAsString);
+
+        if (!availableProps.includes(property)) {
+          errors.push(
+            `プロパティ '${property}' は ${targetField.TypeAsString} フィールドでは使用できません`
+          );
+        }
+      }
+
+      // 複数値フィールドでの配列処理チェック
+      if (targetField.DetailedType?.isMultiValue && !fieldRef.includes('join(')) {
+        warnings.push(`複数値フィールド '${fieldRef}' では join() 関数の使用を推奨します`);
+      }
+
+      return { warnings, errors };
+    }
+
+    // 式を抽出
+    extractExpressions(jsonString) {
+      const regex = /"=([^"]+)"/g;
+      const expressions = [];
+      let match;
+
+      while ((match = regex.exec(jsonString)) !== null) {
+        expressions.push(match[1]);
+      }
+
+      return expressions;
+    }
+
+    // 式の検証
+    validateExpression(expression, targetField) {
+      const warnings = [];
+      const errors = [];
+
+      // 複数値フィールドでの比較演算子チェック
+      if (targetField.DetailedType?.isMultiValue) {
+        if (expression.includes('==') || expression.includes('!=')) {
+          warnings.push(
+            `複数値フィールドでは '==' や '!=' の代わりに indexOf() の使用を推奨します`
+          );
+        }
+      }
+
+      // 数値フィールドでの文字列操作チェック
+      if (targetField.DetailedType?.category === 'numeric') {
+        if (expression.includes('substring(') || expression.includes('indexOf(')) {
+          warnings.push('数値フィールドで文字列操作を行っています。意図した動作か確認してください');
+        }
+      }
+
+      return { warnings, errors };
+    }
+
+    // プレビューデータの生成
+    generateFormatPreview(formatJson, targetField) {
+      try {
+        // サンプルデータを生成
+        const sampleData = this.generateSampleData(targetField);
+
+        // 書式をサンプルデータに適用したプレビューHTMLを生成
+        const previewHtml = this.renderFormatPreview(formatJson, sampleData, targetField);
+
+        return {
+          sampleData,
+          previewHtml,
+          success: true,
+        };
+      } catch (error) {
+        return {
+          sampleData: null,
+          previewHtml: `<div style="color: red;">プレビュー生成エラー: ${error.message}</div>`,
+          success: false,
+        };
+      }
+    }
+
+    // サンプルデータを生成
+    generateSampleData(field) {
+      const typeAsString = field.TypeAsString;
+      const isMultiValue = field.DetailedType?.isMultiValue;
+
+      const sampleDataMap = {
+        Text: isMultiValue ? ['サンプル1', 'サンプル2'] : 'サンプルテキスト',
+        Note: 'これは複数行テキストのサンプルです。\n改行も含まれています。',
+        Number: isMultiValue ? [100, 200] : 150,
+        Currency: isMultiValue ? [1000, 2000] : 1500,
+        DateTime: isMultiValue
+          ? ['2024-01-15T10:00:00Z', '2024-02-15T15:30:00Z']
+          : '2024-01-15T10:00:00Z',
+        Boolean: true,
+        Choice: isMultiValue ? ['選択肢1', '選択肢2'] : '選択肢1',
+        User: isMultiValue
+          ? [
+              { id: 1, title: '田中太郎', email: 'tanaka@example.com' },
+              { id: 2, title: '佐藤花子', email: 'sato@example.com' },
+            ]
+          : { id: 1, title: '田中太郎', email: 'tanaka@example.com' },
+        Lookup: isMultiValue
+          ? [
+              { lookupId: 1, lookupValue: '項目1' },
+              { lookupId: 2, lookupValue: '項目2' },
+            ]
+          : { lookupId: 1, lookupValue: 'サンプル項目' },
+        URL: { Url: 'https://example.com', Description: 'サンプルリンク' },
+      };
+
+      return sampleDataMap[typeAsString] || 'サンプルデータ';
+    }
+
+    // プレビューHTMLをレンダリング
+    renderFormatPreview(formatJson, sampleData, field) {
+      try {
+        // 簡易的なプレビューレンダリング
+        // 実際のSharePoint書式エンジンの完全な再現は困難なため、
+        // 基本的な要素とスタイルのみをプレビュー
+
+        const preview = this.renderElement(formatJson, sampleData, field);
+
+        return `
+          <div style="border: 1px solid #ccc; padding: 10px; background: #f9f9f9; border-radius: 4px;">
+            <div style="font-size: 12px; color: #666; margin-bottom: 8px;">プレビュー（実際の表示と異なる場合があります）</div>
+            <div style="background: white; padding: 8px; border-radius: 2px;">
+              ${preview}
+            </div>
+          </div>
+        `;
+      } catch (error) {
+        return `<div style="color: red;">プレビューレンダリングエラー: ${error.message}</div>`;
+      }
+    }
+
+    // 要素をレンダリング
+    renderElement(element, data, field) {
+      if (typeof element === 'string') {
+        return this.processTextContent(element, data, field);
+      }
+
+      if (!element.elmType) {
+        return JSON.stringify(element);
+      }
+
+      const tagName = element.elmType;
+      let html = `<${tagName}`;
+
+      // 属性を処理
+      if (element.attributes) {
+        for (const [key, value] of Object.entries(element.attributes)) {
+          const processedValue = this.processTextContent(value, data, field);
+          html += ` ${key}="${processedValue}"`;
+        }
+      }
+
+      // スタイルを処理
+      if (element.style) {
+        let styleStr = '';
+        for (const [key, value] of Object.entries(element.style)) {
+          const processedValue = this.processTextContent(value, data, field);
+          styleStr += `${key}: ${processedValue}; `;
+        }
+        html += ` style="${styleStr}"`;
+      }
+
+      html += '>';
+
+      // テキストコンテンツを処理
+      if (element.txtContent) {
+        const processedText = this.processTextContent(element.txtContent, data, field);
+        html += processedText;
+      }
+
+      // 子要素を処理
+      if (element.children) {
+        for (const child of element.children) {
+          html += this.renderElement(child, data, field);
+        }
+      }
+
+      html += `</${tagName}>`;
+      return html;
+    }
+
+    // テキストコンテンツを処理
+    processTextContent(content, data, field) {
+      if (typeof content !== 'string') {
+        return String(content);
+      }
+
+      // フィールド参照を置換
+      let processed = content.replace(/\[\$([^\]]+)\]/g, (_, fieldRef) => {
+        return this.resolveFieldReference(fieldRef, data, field);
+      });
+
+      // 簡易的な式の処理（完全ではない）
+      if (processed.startsWith('=')) {
+        processed = this.processExpression(processed.substring(1), data, field);
+      }
+
+      return processed;
+    }
+
+    // フィールド参照を解決
+    resolveFieldReference(fieldRef, data) {
+      try {
+        if (fieldRef.includes('.')) {
+          const [, property] = fieldRef.split('.');
+          if (Array.isArray(data)) {
+            return data.map(item => item[property] || '').join(', ');
+          } else if (data && typeof data === 'object') {
+            return data[property] || '';
+          }
+        }
+
+        if (Array.isArray(data)) {
+          return data.join(', ');
+        }
+
+        return String(data || '');
+      } catch (error) {
+        return `[エラー: ${fieldRef}]`;
+      }
+    }
+
+    // 簡易的な式の処理
+    processExpression(expression, data) {
+      try {
+        // 非常に基本的な式のみサポート
+        // セキュリティ上の理由で eval() は使用しない
+
+        if (expression.includes('if(')) {
+          return '[条件式の結果]';
+        }
+
+        if (expression.includes('join(')) {
+          return Array.isArray(data) ? data.join(', ') : String(data);
+        }
+
+        return `[式: ${expression}]`;
+      } catch (error) {
+        return `[式エラー: ${expression}]`;
+      }
+    }
+
+    // 自動修正の提案を生成
+    generateAutoFixSuggestions(formatJson, sourceField, targetField) {
+      const suggestions = [];
+
+      // 複数値フィールド用の修正提案
+      if (targetField.DetailedType?.isMultiValue && !sourceField.DetailedType?.isMultiValue) {
+        suggestions.push({
+          type: 'multivalue_fix',
+          title: '複数値フィールド対応',
+          description: 'フィールド参照を join() 関数で囲んで配列を文字列に変換',
+          autoFix: this.generateMultiValueFix(formatJson),
+        });
+      }
+
+      // プロパティ名の修正提案
+      const sourceProps = this.getFieldProperties(sourceField.TypeAsString);
+      const targetProps = this.getFieldProperties(targetField.TypeAsString);
+      const propMapping = this.getPropertyMapping(
+        sourceField.TypeAsString,
+        targetField.TypeAsString
+      );
+
+      if (Object.keys(propMapping).length > 0) {
+        suggestions.push({
+          type: 'property_mapping',
+          title: 'プロパティ名の変更',
+          description: `${sourceField.TypeAsString} から ${targetField.TypeAsString} へのプロパティマッピング`,
+          autoFix: this.generatePropertyMappingFix(formatJson, propMapping),
+        });
+      }
+
+      return suggestions;
+    }
+
+    // 複数値フィールド用の修正を生成
+    generateMultiValueFix(formatJson) {
+      const jsonString = JSON.stringify(formatJson);
+      const fixed = jsonString.replace(/\[\$([^\]]+)\]/g, (match, fieldRef) => {
+        if (!fieldRef.includes('.') && !fieldRef.includes('join(')) {
+          return `join([$${fieldRef}], ', ')`;
+        }
+        return match;
+      });
+
+      try {
+        return JSON.parse(fixed);
+      } catch (error) {
+        return formatJson; // 修正に失敗した場合は元の書式を返す
+      }
+    }
+
+    // プロパティマッピングの修正を生成
+    generatePropertyMappingFix(formatJson, propMapping) {
+      let jsonString = JSON.stringify(formatJson);
+
+      for (const [oldProp, newProp] of Object.entries(propMapping)) {
+        const regex = new RegExp(`\\.${oldProp}\\b`, 'g');
+        jsonString = jsonString.replace(regex, `.${newProp}`);
+      }
+
+      try {
+        return JSON.parse(jsonString);
+      } catch (error) {
+        return formatJson;
+      }
+    }
+
+    // プロパティマッピングを取得
+    getPropertyMapping(sourceType, targetType) {
+      const mappings = {
+        'Lookup->User': { lookupValue: 'title', lookupId: 'id' },
+        'User->Lookup': { title: 'lookupValue', id: 'lookupId' },
+        // 他のマッピングも必要に応じて追加
+      };
+
+      return mappings[`${sourceType}->${targetType}`] || {};
+    }
 
     // リスト一覧を取得
     async getLists() {
@@ -528,7 +989,7 @@ javascript: (() => {
     }
 
     // フィールドカテゴリを取得
-    getFieldCategory(typeAsString, fieldTypeKind) {
+    getFieldCategory(typeAsString) {
       const categoryMap = {
         // テキスト系
         Text: 'text',
@@ -573,7 +1034,7 @@ javascript: (() => {
     }
 
     // フィールド表示名を取得
-    getFieldDisplayName(typeAsString, field) {
+    getFieldDisplayName(typeAsString) {
       const displayNameMap = {
         Text: '1行テキスト',
         Note: '複数行テキスト',
@@ -603,7 +1064,7 @@ javascript: (() => {
     }
 
     // サポートされる書式タイプを取得
-    getSupportedFormats(typeAsString, fieldTypeKind) {
+    getSupportedFormats(typeAsString) {
       const formatSupport = {
         Text: ['text', 'icon', 'link', 'image'],
         Note: ['text', 'html'],
@@ -656,7 +1117,7 @@ javascript: (() => {
     }
 
     // 書式を提供できるかどうか
-    canProvideFormats(typeAsString) {
+    canProvideFormats() {
       // すべての表示可能フィールドは書式提供可能
       return true;
     }
@@ -673,7 +1134,7 @@ javascript: (() => {
         taxonomy: ['TaxonomyFieldType', 'TaxonomyFieldTypeMulti'],
       };
 
-      for (const [group, types] of Object.entries(compatibilityGroups)) {
+      for (const [, types] of Object.entries(compatibilityGroups)) {
         if (types.includes(typeAsString)) {
           return types;
         }
