@@ -42,7 +42,7 @@
         clearTimeout(id) {
           clearTimeout(id);
         }
-        cleanup() {}
+        cleanup() { }
       };
     };
     document.head.appendChild(script);
@@ -789,15 +789,15 @@
         Choice: isMultiValue ? ['選択肢1', '選択肢2'] : '選択肢1',
         User: isMultiValue
           ? [
-              { id: 1, title: '田中太郎', email: 'tanaka@example.com' },
-              { id: 2, title: '佐藤花子', email: 'sato@example.com' },
-            ]
+            { id: 1, title: '田中太郎', email: 'tanaka@example.com' },
+            { id: 2, title: '佐藤花子', email: 'sato@example.com' },
+          ]
           : { id: 1, title: '田中太郎', email: 'tanaka@example.com' },
         Lookup: isMultiValue
           ? [
-              { lookupId: 1, lookupValue: '項目1' },
-              { lookupId: 2, lookupValue: '項目2' },
-            ]
+            { lookupId: 1, lookupValue: '項目1' },
+            { lookupId: 2, lookupValue: '項目2' },
+          ]
           : { lookupId: 1, lookupValue: 'サンプル項目' },
         URL: { Url: 'https://example.com', Description: 'サンプルリンク' },
       };
@@ -1116,7 +1116,7 @@
     async getListFields(listId) {
       try {
         const response = await fetch(
-          `${this.apiBaseUrl}/web/lists('${listId}')/fields?$select=Id,Title,InternalName,TypeAsString,TypeDisplayName,TypeShortDescription,SchemaXml,FieldTypeKind,MaxLength,Required,Indexed,EnforceUniqueValues,Choices,LookupList,LookupField&$filter=Hidden eq false and ReadOnlyField eq false`,
+          `${this.apiBaseUrl}/web/lists('${listId}')/fields?$select=Id,Title,InternalName,TypeAsString,TypeDisplayName,TypeShortDescription,SchemaXml,FieldTypeKind,MaxLength,Required,Indexed,EnforceUniqueValues,Choices,LookupList,LookupField,ReadOnlyField&$filter=Hidden eq false`,
           {
             method: 'GET',
             headers: {
@@ -1283,10 +1283,45 @@
     }
 
     // 書式を受け取れるかどうか
-    canReceiveFormats(typeAsString) {
-      // 読み取り専用や計算フィールドは書式適用不可
-      const readOnlyTypes = ['Counter', 'Computed', 'Calculated'];
-      return !readOnlyTypes.includes(typeAsString);
+    canReceiveFormats(typeAsString, field = null) {
+      // 完全に書式適用不可な型
+      const blockedTypes = ['Counter', 'Computed', 'Calculated'];
+      if (blockedTypes.includes(typeAsString)) {
+        return false;
+      }
+
+      // 読み取り専用でも書式設定可能な特別な列
+      if (field && field.ReadOnlyField) {
+        const formatableReadOnlyFields = [
+          'Author',      // 登録者
+          'Editor',      // 更新者
+          'Created',     // 作成日時
+          'Modified',    // 更新日時
+          'ID'           // ID列
+        ];
+
+        // InternalName で判定
+        if (formatableReadOnlyFields.includes(field.InternalName)) {
+          return true;
+        }
+
+        // TypeAsString で判定（User型の読み取り専用フィールド）
+        if (typeAsString === 'User' &&
+          (field.InternalName === 'Author' || field.InternalName === 'Editor')) {
+          return true;
+        }
+
+        // DateTime型の読み取り専用フィールド
+        if (typeAsString === 'DateTime' &&
+          (field.InternalName === 'Created' || field.InternalName === 'Modified')) {
+          return true;
+        }
+
+        // その他の読み取り専用フィールドは基本的に不可
+        return false;
+      }
+
+      return true;
     }
 
     // 書式を提供できるかどうか
@@ -1363,10 +1398,25 @@
       return descriptions[riskLevel] || '不明なリスクレベル';
     }
 
-    // デフォルトビューで表示される列のみを取得
-    async getDefaultViewFields(listId) {
+    // 現在のビューまたはデフォルトビューで表示される列を取得
+    async getCurrentViewFields(listId) {
       try {
-        // まずデフォルトビューを取得
+        // 1. 現在のビューを検出
+        const currentViewId = this.getCurrentViewId();
+
+        if (currentViewId) {
+          // 現在のビューの列を取得
+          const currentViewInfo = await this.getViewFields(listId, currentViewId);
+          if (currentViewInfo && currentViewInfo.fields.length > 0) {
+            return {
+              ...currentViewInfo,
+              isCurrent: true,
+              message: `現在のビュー「${currentViewInfo.viewTitle}」の列を表示しています`
+            };
+          }
+        }
+
+        // 2. フォールバック: デフォルトビューを取得
         const viewResponse = await fetch(
           `${this.apiBaseUrl}/web/lists('${listId}')/defaultView?$select=Id,Title,ViewFields&$expand=ViewFields`,
           {
@@ -1579,16 +1629,28 @@
 
     // ドラッグ可能にする
     makeDraggable(element) {
-      // 既にドラッグ機能が設定済みの場合はスキップ
-      if (element.dataset.draggableSetup === 'true') {
-        return;
+      // HTMLが再生成された場合は既存のマークをリセット
+      const header = element.querySelector('.formatter-header');
+      if (header && !header.dataset.dragSetup) {
+        // リサイズハンドルのみクリーンアップ（ヘッダーは保持）
+        this.cleanupResizeHandle(element);
+
+        this.setupWindowMove(element);
+        this.setupResize(element);
+
+        // ヘッダーに設定完了マークを付ける（より確実）
+        header.dataset.dragSetup = 'true';
+        element.dataset.draggableSetup = 'true';
       }
+    }
 
-      this.setupWindowMove(element);
-      this.setupResize(element);
-
-      // 設定完了マークを付ける
-      element.dataset.draggableSetup = 'true';
+    // リサイズハンドルのみクリーンアップ（ヘッダーのボタンは保持）
+    cleanupResizeHandle(element) {
+      // リサイズハンドルのみを削除（ヘッダーのボタンは保持）
+      const resizeHandle = element.querySelector('.resize-handle');
+      if (resizeHandle) {
+        resizeHandle.remove();
+      }
     }
 
     // ウィンドウ移動機能
@@ -1825,9 +1887,8 @@
         </div>
 
         <div style="padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.LG} !important; flex: 1 !important; overflow-y: auto !important;">
-          ${
-            currentList.title
-              ? `
+          ${currentList.title
+          ? `
             <div style="background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BACKGROUND.SECONDARY} !important;
                  padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important;
                  border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important;
@@ -1843,8 +1904,8 @@
               </div>
             </div>
           `
-              : ''
-          }
+          : ''
+        }
 
           <div style="display: grid !important; gap: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important;">
             <button id="extract-format" class="action-button" style="${this.getButtonStyles('primary')}">
@@ -2022,12 +2083,12 @@
                     font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.BODY} !important;">
               <option value="">リストを選択してください</option>
               ${lists
-                .map(
-                  list => `
+          .map(
+            list => `
                 <option value="${list.Id}">${Utils.escapeHtml(list.Title)}</option>
               `
-                )
-                .join('')}
+          )
+          .join('')}
             </select>
           </div>          <div id="fields-container" style="display: none !important;">
             <label style="display: block !important; margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;
@@ -2111,8 +2172,8 @@
             return;
           }
           try {
-            // デフォルトビューで表示される列のみを取得
-            const viewInfo = await this.apiClient.getDefaultViewFields(listId);
+            // 現在のビューまたはデフォルトビューで表示される列のみを取得
+            const viewInfo = await this.apiClient.getCurrentViewFields(listId);
             const fieldSelect = document.getElementById('field-select');
             fieldSelect.innerHTML = '<option value="">列を選択してください</option>';
 
@@ -2391,9 +2452,8 @@
         </div>
 
         <div style="padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.LG} !important; flex: 1 !important; overflow-y: auto !important;">
-          ${
-            formats.length === 0
-              ? `
+          ${formats.length === 0
+          ? `
             <div style="text-align: center !important; padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.XL} !important;
                  color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.SECONDARY} !important;">
               <div style="font-size: 48px !important; margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.LG} !important;">📋</div>
@@ -2404,7 +2464,7 @@
               </div>
             </div>
           `
-              : `
+          : `
             <div style="margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.LG} !important;">
               <label style="display: block !important; margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;
                      font-weight: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.WEIGHTS.SEMIBOLD} !important;">
@@ -2416,14 +2476,14 @@
                       font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.BODY} !important;">
                 <option value="">書式を選択してください</option>
                 ${formats
-                  .map(
-                    format => `
+            .map(
+              format => `
                   <option value="${format.id}" data-type="${format.columnType}">
                     ${Utils.escapeHtml(format.name)} (${format.columnType})
                   </option>
                 `
-                  )
-                  .join('')}
+            )
+            .join('')}
               </select>
             </div>
 
@@ -2447,12 +2507,12 @@
                         font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.BODY} !important;">
                   <option value="">リストを選択してください</option>
                   ${lists
-                    .map(
-                      list => `
+            .map(
+              list => `
                     <option value="${list.Id}">${Utils.escapeHtml(list.Title)}</option>
                   `
-                    )
-                    .join('')}
+            )
+            .join('')}
                 </select>
               </div>
 
@@ -2461,6 +2521,12 @@
                        font-weight: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.WEIGHTS.SEMIBOLD} !important;">
                   適用先の列を選択:
                 </label>
+                <div id="target-view-info" style="font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.CAPTION} !important;
+                     color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.SECONDARY} !important;
+                     margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;
+                     display: none !important;">
+                  📋 現在のビューの列のみが対象です
+                </div>
                 <select id="target-field-select" style="width: 100% !important; padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;
                         border: 1px solid ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BORDER.DEFAULT} !important;
                         border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important;
@@ -2492,7 +2558,7 @@
               </div>
             </div>
           `
-          }
+        }
         </div>
       `;
     }
@@ -2574,7 +2640,9 @@ ${Utils.escapeHtml(JSON.stringify(format.formatJson, null, 2))}
           try {
             const formatId = document.getElementById('format-select').value;
             const format = this.formatManager.getFormat(formatId);
-            const fields = await this.apiClient.getListFields(listId);
+            // 現在のビューまたはデフォルトビューの列を取得
+            const viewInfo = await this.apiClient.getCurrentViewFields(listId);
+            const fields = viewInfo.fields;
             // より高度な互換性チェック
             const compatibleFields = fields.filter(field => {
               const detailedType = field.DetailedType || { baseType: field.TypeAsString };
@@ -2595,19 +2663,51 @@ ${Utils.escapeHtml(JSON.stringify(format.formatJson, null, 2))}
               return (isBasicCompatible || isLegacyCompatible) && canReceive;
             });
 
+            // ビュー情報を表示
+            const viewInfoElement = document.getElementById('target-view-info');
+            if (viewInfoElement && viewInfo.message) {
+              viewInfoElement.textContent = viewInfo.message;
+              viewInfoElement.style.display = 'block';
+            }
+
             const fieldSelect = document.getElementById('target-field-select');
             fieldSelect.innerHTML = '<option value="">列を選択してください</option>';
 
             if (compatibleFields.length === 0) {
               fieldSelect.innerHTML += `<option disabled>互換性のある列がありません (${format.columnType})</option>`;
+              if (viewInfo.totalFieldCount > viewInfo.viewFieldCount) {
+                fieldSelect.innerHTML += `<option disabled>--- 他のビューには ${viewInfo.totalFieldCount - viewInfo.viewFieldCount} 列の追加列があります ---</option>`;
+              }
             } else {
+              // リストタイトルとビュー情報を表示
+              const listTitle = document.getElementById('target-list-select').selectedOptions[0].textContent;
+              fieldSelect.innerHTML += `<option disabled>--- ${Utils.escapeHtml(listTitle)} (${Utils.escapeHtml(viewInfo.viewTitle)}: ${compatibleFields.length}/${viewInfo.viewFieldCount}列が互換) ---</option>`;
+
               compatibleFields.forEach(field => {
+                const detailedType = field.DetailedType || { displayName: field.TypeAsString, supportedFormats: [] };
+                const compatibility = field.FormattingCompatibility || { riskLevel: 'medium' };
+
+                // リスクレベルに応じたアイコン
+                const riskIcon = {
+                  'low': '🟢',
+                  'medium': '🟡',
+                  'high': '🔴'
+                }[compatibility.riskLevel?.level || compatibility.riskLevel] || '⚪';
+
                 fieldSelect.innerHTML += `
-                  <option value="${field.Id}" data-internal="${field.InternalName}" data-title="${field.Title}">
-                    ${Utils.escapeHtml(field.Title)} (${field.TypeAsString})
+                  <option value="${field.Id}"
+                          data-internal="${field.InternalName}"
+                          data-title="${field.Title}"
+                          title="サポート書式: ${detailedType.supportedFormats?.join(', ') || 'N/A'}">
+                    ${riskIcon} ${Utils.escapeHtml(field.Title)} (${detailedType.displayName || field.TypeAsString})
                   </option>
                 `;
               });
+
+              // 除外された列がある場合の説明を追加
+              if (fields.length > compatibleFields.length) {
+                fieldSelect.innerHTML += `<option disabled>--- ${fields.length - compatibleFields.length}列が型の非互換により除外されました ---</option>`;
+              }
             }
 
             fieldsContainer.style.display = 'block';
@@ -2743,16 +2843,15 @@ ${Utils.escapeHtml(JSON.stringify(format.formatJson, null, 2))}
         </div>
 
         <div style="padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.LG} !important; flex: 1 !important; overflow-y: auto !important;">
-          ${
-            formats.length === 0
-              ? `
+          ${formats.length === 0
+          ? `
             <div style="text-align: center !important; padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.XL} !important;
                  color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.SECONDARY} !important;">
               <div style="font-size: 48px !important; margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.LG} !important;">📋</div>
               <div>保存された書式がありません</div>
             </div>
           `
-              : `
+          : `
             <div style="margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.LG} !important;
                  font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.CAPTION} !important;
                  color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.SECONDARY} !important;">
@@ -2761,8 +2860,8 @@ ${Utils.escapeHtml(JSON.stringify(format.formatJson, null, 2))}
 
             <div style="display: grid !important; gap: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important;">
               ${formats
-                .map(
-                  format => `                <div style="border: 1px solid ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BORDER.DEFAULT} !important;
+            .map(
+              format => `                <div style="border: 1px solid ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BORDER.DEFAULT} !important;
                      border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important;
                      padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important;
                      background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BACKGROUND.PRIMARY} !important;
@@ -2819,11 +2918,11 @@ ${Utils.escapeHtml(JSON.stringify(format.formatJson, null, 2))}
                   </div>
                 </div>
               `
-                )
-                .join('')}
+            )
+            .join('')}
             </div>
           `
-          }
+        }
         </div>
       `;
     }
