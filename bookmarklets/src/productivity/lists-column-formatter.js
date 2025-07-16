@@ -138,10 +138,16 @@
       return div.innerHTML;
     }
 
-    // 現在のサイト情報を取得
+    // 現在のサイト情報を取得（SharePoint & OneDrive対応）
     static getSiteInfo() {
       const url = window.location.href;
       const hostname = window.location.hostname;
+
+      // OneDrive の判定
+      const isOneDrive =
+        hostname.includes('onedrive.live.com') ||
+        hostname.includes('-my.sharepoint.com') ||
+        url.includes('/personal/');
 
       // SharePoint Online または SharePoint Server の判定
       const isSharePointOnline = hostname.includes('.sharepoint.com');
@@ -150,7 +156,8 @@
         document.querySelector('.ms-siteHeader-siteName') ||
         url.includes('/_layouts/');
 
-      if (!isSharePointOnline && !isSharePointServer) {
+      // OneDrive、SharePoint、またはSharePoint Serverのいずれでもない場合
+      if (!isOneDrive && !isSharePointOnline && !isSharePointServer) {
         return null;
       }
 
@@ -158,7 +165,18 @@
       let baseUrl = window.location.origin;
       const pathParts = window.location.pathname.split('/').filter(p => p);
 
-      if (isSharePointOnline) {
+      if (isOneDrive) {
+        // OneDrive の場合
+        if (hostname.includes('onedrive.live.com')) {
+          // Consumer OneDrive: https://onedrive.live.com/
+          baseUrl = window.location.origin;
+        } else if (hostname.includes('-my.sharepoint.com')) {
+          // Business OneDrive: https://tenant-my.sharepoint.com/personal/user_tenant_onmicrosoft_com
+          if (pathParts.length >= 2 && pathParts[0] === 'personal') {
+            baseUrl += `/${pathParts[0]}/${pathParts[1]}`;
+          }
+        }
+      } else if (isSharePointOnline) {
         // SharePoint Online: /sites/sitename または /teams/teamname 形式
         if (pathParts.length >= 2 && (pathParts[0] === 'sites' || pathParts[0] === 'teams')) {
           baseUrl += `/${pathParts[0]}/${pathParts[1]}`;
@@ -173,15 +191,39 @@
 
       return {
         baseUrl,
+        isOneDrive,
         isSharePointOnline,
         isSharePointServer,
+        platformType: isOneDrive
+          ? 'OneDrive'
+          : isSharePointOnline
+            ? 'SharePoint Online'
+            : 'SharePoint Server',
         currentUrl: url,
       };
     }
 
-    // Lists ページかどうかを判定
+    // Lists ページかどうかを判定（OneDrive対応）
     static isListsPage() {
       const url = window.location.href;
+      const hostname = window.location.hostname;
+
+      // OneDriveでのリスト判定
+      if (hostname.includes('onedrive.live.com') || hostname.includes('-my.sharepoint.com')) {
+        return (
+          url.includes('/lists/') ||
+          url.includes('?env=WebViewList') ||
+          url.includes('?view=') ||
+          document.querySelector('[data-automation-id="ColumnHeader"]') ||
+          document.querySelector('.ms-List-page') ||
+          document.querySelector('[data-automation-id="listView"]') ||
+          // OneDrive特有のセレクタ
+          document.querySelector('[data-automation-id="detailsListHeaderRow"]') ||
+          document.querySelector('.od-ItemContent-list')
+        );
+      }
+
+      // SharePointでのリスト判定（従来通り）
       return (
         url.includes('/lists/') ||
         url.includes('?env=WebViewList') ||
@@ -190,39 +232,89 @@
       );
     }
 
-    // 現在のリスト情報を取得
+    // 現在のリスト情報を取得（OneDrive対応）
     static getCurrentListInfo() {
-      // リスト名を取得（複数の方法で試行）
+      const hostname = window.location.hostname;
+      const url = window.location.href;
       let listTitle = '';
 
-      // Method 1: ページタイトルから
-      const title = document.title;
-      if (title && !title.includes('SharePoint')) {
-        listTitle = title.split(' - ')[0];
-      }
-
-      // Method 2: ヘッダーから
-      if (!listTitle) {
-        const headerElement =
-          document.querySelector('[data-automation-id="pageHeader"] h1') ||
-          document.querySelector('.ms-List-page h1') ||
-          document.querySelector('h1');
-        if (headerElement) {
-          listTitle = headerElement.textContent.trim();
+      // OneDriveでのリスト名取得
+      if (hostname.includes('onedrive.live.com') || hostname.includes('-my.sharepoint.com')) {
+        // Method 1: OneDrive特有のページタイトルから
+        const title = document.title;
+        if (title) {
+          // OneDriveの場合、タイトルから「- OneDrive」や「- Personal」を除去
+          listTitle = title
+            .replace(/ - OneDrive.*$/, '')
+            .replace(/ - Personal.*$/, '')
+            .replace(/ - Microsoft Lists.*$/, '')
+            .split(' - ')[0];
         }
-      }
 
-      // Method 3: URLから推定
-      if (!listTitle) {
-        const match = window.location.pathname.match(/\/lists\/([^\/]+)/);
-        if (match) {
-          listTitle = decodeURIComponent(match[1]).replace(/\+/g, ' ');
+        // Method 2: OneDrive特有のヘッダーから
+        if (!listTitle) {
+          const headerElement =
+            document.querySelector('[data-automation-id="pageHeader"] h1') ||
+            document.querySelector('[data-automation-id="breadcrumb"] span:last-child') ||
+            document.querySelector('.od-ItemContent-title') ||
+            document.querySelector('h1');
+          if (headerElement) {
+            listTitle = headerElement.textContent.trim();
+          }
+        }
+
+        // Method 3: OneDrive URLパターンから推定
+        if (!listTitle) {
+          // OneDrive Business: /personal/user/Documents/Lists/ListName
+          let match = url.match(/\/Lists\/([^\/\?]+)/);
+          if (match) {
+            listTitle = decodeURIComponent(match[1]).replace(/\+/g, ' ');
+          } else {
+            // Consumer OneDrive: 異なるパターンの可能性
+            match = url.match(/\/lists\/([^\/\?]+)/);
+            if (match) {
+              listTitle = decodeURIComponent(match[1]).replace(/\+/g, ' ');
+            }
+          }
+        }
+      } else {
+        // SharePointでのリスト名取得（従来通り）
+        // Method 1: ページタイトルから
+        const title = document.title;
+        if (title && !title.includes('SharePoint')) {
+          listTitle = title.split(' - ')[0];
+        }
+
+        // Method 2: ヘッダーから
+        if (!listTitle) {
+          const headerElement =
+            document.querySelector('[data-automation-id="pageHeader"] h1') ||
+            document.querySelector('.ms-List-page h1') ||
+            document.querySelector('h1');
+          if (headerElement) {
+            listTitle = headerElement.textContent.trim();
+          }
+        }
+
+        // Method 3: URLから推定
+        if (!listTitle) {
+          const match = window.location.pathname.match(/\/lists\/([^\/]+)/);
+          if (match) {
+            listTitle = decodeURIComponent(match[1]).replace(/\+/g, ' ');
+          }
         }
       }
 
       return {
         title: listTitle,
-        url: window.location.href,
+        url: url,
+        platform: hostname.includes('onedrive.live.com')
+          ? 'OneDrive Consumer'
+          : hostname.includes('-my.sharepoint.com')
+            ? 'OneDrive Business'
+            : hostname.includes('.sharepoint.com')
+              ? 'SharePoint Online'
+              : 'SharePoint Server',
       };
     }
 
@@ -442,12 +534,22 @@
   }
 
   // =============================================================================
-  // SharePoint API クライアント
+  // SharePoint API クライアント（OneDrive対応）
   // =============================================================================
   class SharePointApiClient {
     constructor(siteInfo) {
       this.siteInfo = siteInfo;
-      this.apiBaseUrl = `${siteInfo.baseUrl}/_api`;
+
+      // OneDriveとSharePointでAPIエンドポイントを使い分け
+      if (siteInfo.isOneDrive) {
+        // OneDriveの場合はMicrosoft Graph APIまたはSharePoint REST APIを使用
+        this.apiBaseUrl = `${siteInfo.baseUrl}/_api`;
+        this.isOneDriveMode = true;
+      } else {
+        // SharePointの場合は従来通り
+        this.apiBaseUrl = `${siteInfo.baseUrl}/_api`;
+        this.isOneDriveMode = false;
+      }
     }
 
     // 書式の事前検証（プレビュー用）
@@ -914,9 +1016,15 @@
       return mappings[`${sourceType}->${targetType}`] || {};
     }
 
-    // リスト一覧を取得
+    // リスト一覧を取得（OneDrive対応）
     async getLists() {
       try {
+        // OneDriveの場合は特別な処理
+        if (this.isOneDriveMode) {
+          return await this.getOneDriveLists();
+        }
+
+        // SharePointの場合は従来通り
         const response = await fetch(
           `${this.apiBaseUrl}/web/lists?$select=Id,Title,BaseType&$filter=Hidden eq false`,
           {
@@ -935,6 +1043,71 @@
         return data.d.results.filter(list => list.BaseType === 0); // GenericList のみ
       } catch (error) {
         console.error('リスト取得エラー:', error);
+        return [];
+      }
+    }
+
+    // OneDrive専用のリスト取得
+    async getOneDriveLists() {
+      try {
+        // OneDriveでもSharePoint REST APIが使用可能
+        const response = await fetch(
+          `${this.apiBaseUrl}/web/lists?$select=Id,Title,BaseType,Description&$filter=Hidden eq false and BaseType eq 0`,
+          {
+            method: 'GET',
+            headers: {
+              Accept: 'application/json;odata=verbose',
+            },
+          }
+        );
+
+        if (!response.ok) {
+          // OneDriveで認証エラーの場合、現在のリストのみを返す
+          if (response.status === 401 || response.status === 403) {
+            return await this.getCurrentOneDriveList();
+          }
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const lists = data.d.results || [];
+
+        // OneDriveの場合、追加の情報を付与
+        return lists.map(list => ({
+          ...list,
+          Platform: 'OneDrive',
+          IsOneDrive: true,
+        }));
+      } catch (error) {
+        console.error('OneDriveリスト取得エラー:', error);
+        // フォールバック: 現在のリストのみを返す
+        return await this.getCurrentOneDriveList();
+      }
+    }
+
+    // 現在のOneDriveリストを取得（フォールバック用）
+    async getCurrentOneDriveList() {
+      try {
+        const currentListInfo = Utils.getCurrentListInfo();
+
+        if (currentListInfo.title) {
+          // 現在のリストの情報を推定で作成
+          return [
+            {
+              Id: 'current-list',
+              Title: currentListInfo.title,
+              BaseType: 0,
+              Platform: currentListInfo.platform,
+              IsOneDrive: true,
+              IsCurrent: true,
+              Description: '現在表示中のリスト',
+            },
+          ];
+        }
+
+        return [];
+      } catch (error) {
+        console.error('現在のOneDriveリスト取得エラー:', error);
         return [];
       }
     }
@@ -2946,7 +3119,7 @@ ${Utils.escapeHtml(JSON.stringify(format.formatJson, null, 2))}
       this.formatManager = new ColumnFormatManager();
 
       if (!this.siteInfo) {
-        alert('このページはSharePointサイトではありません。');
+        alert('このページはSharePoint、OneDrive、またはMicrosoft Listsのページではありません。');
         return;
       }
 
