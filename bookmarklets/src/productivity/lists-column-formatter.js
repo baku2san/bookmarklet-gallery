@@ -347,6 +347,453 @@
   }
 
   // =============================================================================
+  // デフォルト書式プロバイダークラス
+  // =============================================================================
+  class DefaultFormatProvider {
+    constructor() {
+      this.defaultFormats = this.initializeDefaultFormats();
+    }
+
+    // デフォルト書式テンプレートを初期化
+    initializeDefaultFormats() {
+      return {
+        Number: [
+          {
+            id: 'number-percentage-color',
+            name: 'パーセンテージ色分け',
+            description: '数値を0-100%として色分け表示',
+            category: 'visualization',
+            formatJson: {
+              "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/column-formatting.schema.json",
+              "elmType": "div",
+              "style": {
+                "background-color": "=if(@currentField >= 80, '#107c10', if(@currentField >= 60, '#ffaa44', if(@currentField >= 40, '#ff8c00', '#d13438')))",
+                "color": "white",
+                "padding": "4px 8px",
+                "border-radius": "4px",
+                "text-align": "center",
+                "font-weight": "bold"
+              },
+              "txtContent": "=@currentField + '%'"
+            },
+            sampleData: 75
+          },
+          {
+            id: 'number-progress-bar',
+            name: '進捗バー',
+            description: '数値を進捗バーとして表示',
+            category: 'visualization',
+            formatJson: {
+              "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/column-formatting.schema.json",
+              "elmType": "div",
+              "style": {
+                "background-color": "#f3f2f1",
+                "border-radius": "10px",
+                "height": "20px",
+                "position": "relative",
+                "overflow": "hidden"
+              },
+              "children": [
+                {
+                  "elmType": "div",
+                  "style": {
+                    "background-color": "=if(@currentField >= 80, '#107c10', if(@currentField >= 60, '#0078d4', '#ffaa44'))",
+                    "height": "100%",
+                    "width": "=@currentField + '%'",
+                    "transition": "width 0.3s ease"
+                  }
+                },
+                {
+                  "elmType": "div",
+                  "style": {
+                    "position": "absolute",
+                    "top": "50%",
+                    "left": "50%",
+                    "transform": "translate(-50%, -50%)",
+                    "font-size": "12px",
+                    "font-weight": "bold",
+                    "color": "#323130"
+                  },
+                  "txtContent": "=@currentField + '%'"
+                }
+              ]
+            },
+            sampleData: 65
+          }
+        ],
+        Person: [
+          {
+            id: 'person-avatar-name',
+            name: 'アバター + 名前',
+            description: 'ユーザーのアバターと名前を表示',
+            category: 'display',
+            formatJson: {
+              "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/column-formatting.schema.json",
+              "elmType": "div",
+              "style": {
+                "display": "flex",
+                "align-items": "center",
+                "gap": "8px"
+              },
+              "children": [
+                {
+                  "elmType": "img",
+                  "attributes": {
+                    "src": "=getUserImage([$FieldName.email], 'S')"
+                  },
+                  "style": {
+                    "width": "32px",
+                    "height": "32px",
+                    "border-radius": "50%",
+                    "border": "2px solid #0078d4"
+                  }
+                },
+                {
+                  "elmType": "div",
+                  "txtContent": "[$FieldName.title]",
+                  "style": {
+                    "font-weight": "500"
+                  }
+                }
+              ]
+            },
+            sampleData: { title: "田中太郎", email: "tanaka@example.com" }
+          },
+          {
+            id: 'person-card',
+            name: 'ユーザーカード',
+            description: 'カード形式でユーザー情報を表示',
+            category: 'display',
+            formatJson: {
+              "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/column-formatting.schema.json",
+              "elmType": "div",
+              "style": {
+                "background-color": "#f8f9fa",
+                "border": "1px solid #edebe9",
+                "border-radius": "6px",
+                "padding": "8px",
+                "display": "flex",
+                "align-items": "center",
+                "gap": "8px",
+                "max-width": "200px"
+              },
+              "children": [
+                {
+                  "elmType": "img",
+                  "attributes": {
+                    "src": "=getUserImage([$FieldName.email], 'S')"
+                  },
+                  "style": {
+                    "width": "24px",
+                    "height": "24px",
+                    "border-radius": "50%"
+                  }
+                },
+                {
+                  "elmType": "div",
+                  "children": [
+                    {
+                      "elmType": "div",
+                      "txtContent": "[$FieldName.title]",
+                      "style": {
+                        "font-size": "13px",
+                        "font-weight": "600",
+                        "line-height": "1.2"
+                      }
+                    },
+                    {
+                      "elmType": "div",
+                      "txtContent": "[$FieldName.email]",
+                      "style": {
+                        "font-size": "11px",
+                        "color": "#605e5c",
+                        "line-height": "1.2"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            sampleData: { title: "佐藤花子", email: "sato@example.com" }
+          }
+        ],
+        DateTime: [
+          {
+            id: 'datetime-relative',
+            name: '相対時間表示',
+            description: '現在時刻からの相対時間を表示',
+            category: 'display',
+            formatJson: {
+              "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/column-formatting.schema.json",
+              "elmType": "div",
+              "style": {
+                "display": "flex",
+                "align-items": "center",
+                "gap": "6px"
+              },
+              "children": [
+                {
+                  "elmType": "span",
+                  "style": {
+                    "font-size": "14px"
+                  },
+                  "txtContent": "🕒"
+                },
+                {
+                  "elmType": "span",
+                  "txtContent": "=toLocaleDateString(@currentField) + ' (' + toRelativeTime(@currentField) + ')'"
+                }
+              ]
+            },
+            sampleData: "2024-01-15T10:00:00Z"
+          },
+          {
+            id: 'datetime-icon-date',
+            name: 'アイコン付き日付',
+            description: 'カレンダーアイコン付きで日付を表示',
+            category: 'display',
+            formatJson: {
+              "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/column-formatting.schema.json",
+              "elmType": "div",
+              "style": {
+                "display": "flex",
+                "align-items": "center",
+                "gap": "8px",
+                "background-color": "#f3f2f1",
+                "padding": "4px 8px",
+                "border-radius": "4px",
+                "border-left": "3px solid #0078d4"
+              },
+              "children": [
+                {
+                  "elmType": "span",
+                  "style": {
+                    "font-size": "16px"
+                  },
+                  "txtContent": "📅"
+                },
+                {
+                  "elmType": "span",
+                  "txtContent": "=toLocaleDateString(@currentField)",
+                  "style": {
+                    "font-weight": "500"
+                  }
+                }
+              ]
+            },
+            sampleData: "2024-02-20T15:30:00Z"
+          }
+        ],
+        Choice: [
+          {
+            id: 'choice-color-pill',
+            name: 'カラーピル',
+            description: '選択肢を色付きピルで表示',
+            category: 'visualization',
+            formatJson: {
+              "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/column-formatting.schema.json",
+              "elmType": "div",
+              "style": {
+                "background-color": "=if(@currentField == '完了', '#107c10', if(@currentField == '進行中', '#0078d4', if(@currentField == '保留', '#ffaa44', '#8a8886')))",
+                "color": "white",
+                "padding": "4px 12px",
+                "border-radius": "12px",
+                "font-size": "12px",
+                "font-weight": "600",
+                "text-align": "center",
+                "display": "inline-block"
+              },
+              "txtContent": "@currentField"
+            },
+            sampleData: "進行中"
+          },
+          {
+            id: 'choice-icon-status',
+            name: 'アイコン付きステータス',
+            description: 'アイコン付きでステータスを表示',
+            category: 'visualization',
+            formatJson: {
+              "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/column-formatting.schema.json",
+              "elmType": "div",
+              "style": {
+                "display": "flex",
+                "align-items": "center",
+                "gap": "6px"
+              },
+              "children": [
+                {
+                  "elmType": "span",
+                  "style": {
+                    "font-size": "14px"
+                  },
+                  "txtContent": "=if(@currentField == '完了', '✅', if(@currentField == '進行中', '🔄', if(@currentField == '保留', '⏸️', '❓')))"
+                },
+                {
+                  "elmType": "span",
+                  "txtContent": "@currentField",
+                  "style": {
+                    "font-weight": "500"
+                  }
+                }
+              ]
+            },
+            sampleData: "完了"
+          }
+        ],
+        Boolean: [
+          {
+            id: 'boolean-check-cross',
+            name: 'チェック/バツ',
+            description: 'はい/いいえをチェックマーク/バツ印で表示',
+            category: 'visualization',
+            formatJson: {
+              "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/column-formatting.schema.json",
+              "elmType": "div",
+              "style": {
+                "text-align": "center",
+                "font-size": "16px"
+              },
+              "txtContent": "=if(@currentField == true, '✅', '❌')"
+            },
+            sampleData: true
+          },
+          {
+            id: 'boolean-status-badge',
+            name: 'ステータスバッジ',
+            description: 'はい/いいえをステータスバッジで表示',
+            category: 'visualization',
+            formatJson: {
+              "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/column-formatting.schema.json",
+              "elmType": "div",
+              "style": {
+                "background-color": "=if(@currentField == true, '#107c10', '#d13438')",
+                "color": "white",
+                "padding": "4px 8px",
+                "border-radius": "4px",
+                "font-size": "12px",
+                "font-weight": "600",
+                "text-align": "center",
+                "display": "inline-block"
+              },
+              "txtContent": "=if(@currentField == true, 'はい', 'いいえ')"
+            },
+            sampleData: false
+          }
+        ],
+        Text: [
+          {
+            id: 'text-highlight',
+            name: 'ハイライト表示',
+            description: 'テキストをハイライト表示',
+            category: 'display',
+            formatJson: {
+              "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/column-formatting.schema.json",
+              "elmType": "div",
+              "style": {
+                "background-color": "#fff4ce",
+                "border-left": "3px solid #ffaa44",
+                "padding": "6px 8px",
+                "font-weight": "500"
+              },
+              "txtContent": "@currentField"
+            },
+            sampleData: "重要なテキスト"
+          },
+          {
+            id: 'text-badge',
+            name: 'バッジ表示',
+            description: 'テキストをバッジ形式で表示',
+            category: 'display',
+            formatJson: {
+              "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/column-formatting.schema.json",
+              "elmType": "div",
+              "style": {
+                "background-color": "#0078d4",
+                "color": "white",
+                "padding": "4px 8px",
+                "border-radius": "4px",
+                "font-size": "12px",
+                "font-weight": "600",
+                "display": "inline-block"
+              },
+              "txtContent": "@currentField"
+            },
+            sampleData: "ラベル"
+          }
+        ]
+      };
+    }
+
+    // 指定された列タイプのデフォルト書式を取得
+    getDefaultFormatsForType(columnType) {
+      const normalizedType = ColumnFormatManager.normalizeColumnType(columnType);
+      return this.defaultFormats[normalizedType] || [];
+    }
+
+    // 全てのデフォルト書式を取得
+    getAllDefaultFormats() {
+      return this.defaultFormats;
+    }
+
+    // デフォルト書式を列に適用するためにカスタマイズ
+    customizeFormatForColumn(formatTemplate, columnInternalName, columnTitle) {
+      const customizedFormat = JSON.parse(JSON.stringify(formatTemplate.formatJson));
+
+      // フィールド参照を実際の列名に置換
+      const replaceFieldReferences = (obj) => {
+        if (typeof obj === 'string') {
+          return obj.replace(/\[\$FieldName\]/g, `[$${columnInternalName}]`)
+            .replace(/\[\$FieldName\.([^\]]+)\]/g, `[$${columnInternalName}.$1]`);
+        } else if (Array.isArray(obj)) {
+          return obj.map(replaceFieldReferences);
+        } else if (obj && typeof obj === 'object') {
+          const result = {};
+          for (const [key, value] of Object.entries(obj)) {
+            result[key] = replaceFieldReferences(value);
+          }
+          return result;
+        }
+        return obj;
+      };
+
+      return replaceFieldReferences(customizedFormat);
+    }
+
+    // デフォルト書式の検証
+    validateDefaultFormat(formatTemplate) {
+      try {
+        if (!formatTemplate.id || !formatTemplate.name || !formatTemplate.formatJson) {
+          return { isValid: false, error: '必須フィールドが不足しています' };
+        }
+
+        // JSON構造の基本検証
+        if (typeof formatTemplate.formatJson !== 'object') {
+          return { isValid: false, error: 'formatJsonが無効です' };
+        }
+
+        return { isValid: true };
+      } catch (error) {
+        return { isValid: false, error: error.message };
+      }
+    }
+
+    // 指定された列タイプのサンプルデータを生成
+    generateSampleDataForType(columnType) {
+      const sampleDataMap = {
+        Number: 75,
+        Person: { title: "サンプルユーザー", email: "sample@example.com" },
+        DateTime: new Date().toISOString(),
+        Choice: "サンプル選択肢",
+        Boolean: true,
+        Text: "サンプルテキスト"
+      };
+
+      const normalizedType = ColumnFormatManager.normalizeColumnType(columnType);
+      return sampleDataMap[normalizedType] || "サンプルデータ";
+    }
+  }
+
+  // =============================================================================
   // 列書式管理クラス
   // =============================================================================
   class ColumnFormatManager {
@@ -1575,7 +2022,8 @@
     constructor(apiClient, formatManager) {
       this.apiClient = apiClient;
       this.formatManager = formatManager;
-      this.currentView = 'main'; // main, extract, apply, manage
+      this.defaultFormatProvider = new DefaultFormatProvider();
+      this.currentView = 'main'; // main, extract, apply, manage, defaults
       this.selectedList = null;
       this.selectedField = null;
     }
@@ -1921,6 +2369,11 @@
               🗂️ 保存された書式を管理${savedFormatsCount > 0 ? ` (${savedFormatsCount})` : ''}
             </button>
 
+            <button id="view-defaults" class="action-button" style="${this.getButtonStyles('info')}"
+              title="列タイプ別のデフォルト書式テンプレートを参照できます">
+              🎨 デフォルト書式テンプレート
+            </button>
+
             <hr style="border: none !important; border-top: 1px solid ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BORDER.DEFAULT} !important;
                  margin: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} 0 !important;">            <button id="import-format" class="action-button" style="${this.getButtonStyles('info')}"
               title="Microsoft公式のJSON列書式または、このツールでエクスポートした書式をインポートできます">
@@ -1996,6 +2449,13 @@
       if (manageBtn) {
         memoryManager.addEventListener(manageBtn, 'click', () => {
           this.showManageView();
+        });
+      }
+
+      const defaultsBtn = document.getElementById('view-defaults');
+      if (defaultsBtn) {
+        memoryManager.addEventListener(defaultsBtn, 'click', () => {
+          this.showDefaultsView();
         });
       }
 
@@ -3205,6 +3665,340 @@ ${Utils.escapeHtml(JSON.stringify(format.formatJson, null, 2))}
             dialog?.remove();
           }
         });
+      }
+    }
+
+    // デフォルト書式ビューを表示
+    showDefaultsView() {
+      this.currentView = 'defaults';
+      const panel = document.getElementById(CONSTANTS.PANEL_ID);
+      if (!panel) return;
+
+      const allDefaultFormats = this.defaultFormatProvider.getAllDefaultFormats();
+      panel.innerHTML = this.generateDefaultsViewHTML(allDefaultFormats);
+      this.attachDefaultsViewEvents();
+
+      // ドラッグ機能を再有効化
+      setTimeout(() => {
+        this.makeDraggable(panel);
+      }, 50);
+    }
+
+    // デフォルト書式ビューHTML生成
+    generateDefaultsViewHTML(allDefaultFormats) {
+      const columnTypes = Object.keys(allDefaultFormats);
+
+      return `
+        <div class="formatter-header" style="background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.PRIMARY} !important;
+             color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.INVERSE} !important;
+             padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important;
+             border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.XL} ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.XL} 0 0 !important;
+             display: flex !important; justify-content: space-between !important; align-items: center !important;
+             cursor: move !important;">
+          <div style="display: flex !important; align-items: center !important; gap: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;">
+            <span style="font-size: 12px !important; opacity: 0.8 !important;" title="ドラッグしてウィンドウを移動">⋮⋮</span>
+            <button id="back-to-main" style="background: transparent !important; border: none !important;
+                    color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.INVERSE} !important;
+                    font-size: 16px !important; cursor: pointer !important; padding: 4px !important;">←</button>
+            <h3 style="margin: 0 !important; font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.H3} !important;">
+              🎨 デフォルト書式テンプレート
+            </h3>
+          </div>
+          <button id="close-panel" style="background: transparent !important; border: none !important;
+                  color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.INVERSE} !important;
+                  font-size: 18px !important; cursor: pointer !important; padding: 4px !important;">✕</button>
+        </div>
+
+        <div style="padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.LG} !important; flex: 1 !important; overflow-y: auto !important;">
+          <div style="margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.LG} !important;
+               font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.CAPTION} !important;
+               color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.SECONDARY} !important;">
+            列タイプ別のデフォルト書式テンプレートです。これらの書式は新しい列に適用できます。
+          </div>
+
+          ${columnTypes.map(columnType => {
+        const formats = allDefaultFormats[columnType];
+        const typeDisplayName = this.getColumnTypeDisplayName(columnType);
+
+        return `
+              <div style="margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.XL} !important;">
+                <h4 style="margin: 0 0 ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} 0 !important;
+                   color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.PRIMARY} !important;
+                   font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.H4} !important;
+                   border-bottom: 2px solid ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BORDER.DEFAULT} !important;
+                   padding-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;">
+                  ${this.getColumnTypeIcon(columnType)} ${typeDisplayName}
+                </h4>
+
+                <div style="display: grid !important; gap: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important;">
+                  ${formats.map(format => `
+                    <div style="border: 1px solid ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BORDER.DEFAULT} !important;
+                         border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.MD} !important;
+                         padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.MD} !important;
+                         background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BACKGROUND.PRIMARY} !important;
+                         box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;">
+
+                      <div style="display: flex !important; justify-content: space-between !important;
+                           align-items: flex-start !important; margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;">
+                        <div style="flex: 1 !important;">
+                          <h5 style="margin: 0 0 ${SHAREPOINT_DESIGN_SYSTEM.SPACING.XS} 0 !important;
+                             color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.PRIMARY} !important;
+                             font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.H4} !important;">
+                            ${Utils.escapeHtml(format.name)}
+                          </h5>
+                          <div style="font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.CAPTION} !important;
+                               color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.SECONDARY} !important;">
+                            ${Utils.escapeHtml(format.description)}
+                          </div>
+                        </div>
+
+                        <div style="display: flex !important; gap: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.XS} !important;">
+                          <button class="copy-default-format" data-format-id="${format.id}" data-column-type="${columnType}"
+                                  style="background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.STATUS.INFO} !important;
+                                  color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.INVERSE} !important;
+                                  border: none !important; border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.SM} !important;
+                                  padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.XS} ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;
+                                  font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.CAPTION} !important;
+                                  cursor: pointer !important;" title="クリップボードにコピー">
+                            📋
+                          </button>
+                          <button class="save-default-format" data-format-id="${format.id}" data-column-type="${columnType}"
+                                  style="background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.STATUS.SUCCESS} !important;
+                                  color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.INVERSE} !important;
+                                  border: none !important; border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.SM} !important;
+                                  padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.XS} ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;
+                                  font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.CAPTION} !important;
+                                  cursor: pointer !important;" title="保存済み書式に追加">
+                            💾
+                          </button>
+                        </div>
+                      </div>
+
+                      <div style="background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BACKGROUND.SECONDARY} !important;
+                           padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;
+                           border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.SM} !important;
+                           margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;">
+                        <div style="font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.CAPTION} !important;
+                             color: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.TEXT.SECONDARY} !important;
+                             margin-bottom: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.XS} !important;">
+                          プレビュー:
+                        </div>
+                        <div style="background: white !important; padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;
+                             border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.SM} !important;
+                             border: 1px solid ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BORDER.DEFAULT} !important;">
+                          ${this.generateFormatPreview(format, columnType)}
+                        </div>
+                      </div>
+
+                      <details style="margin-top: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;">
+                        <summary style="cursor: pointer !important; font-weight: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.WEIGHTS.MEDIUM} !important;
+                                 font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.CAPTION} !important;">
+                          JSON書式を表示
+                        </summary>
+                        <pre style="background: ${SHAREPOINT_DESIGN_SYSTEM.COLORS.BACKGROUND.TERTIARY} !important;
+                             padding: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;
+                             border-radius: ${SHAREPOINT_DESIGN_SYSTEM.BORDER_RADIUS.SM} !important;
+                             font-size: ${SHAREPOINT_DESIGN_SYSTEM.TYPOGRAPHY.SIZES.SMALL} !important;
+                             max-height: 150px !important; overflow-y: auto !important;
+                             white-space: pre-wrap !important; word-break: break-word !important;
+                             margin-top: ${SHAREPOINT_DESIGN_SYSTEM.SPACING.SM} !important;">
+${Utils.escapeHtml(JSON.stringify(format.formatJson, null, 2))}
+                        </pre>
+                      </details>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            `;
+      }).join('')}
+        </div>
+      `;
+    }
+
+    // デフォルト書式ビューイベント追加
+    attachDefaultsViewEvents() {
+      const closeBtn = document.getElementById('close-panel');
+      if (closeBtn) {
+        memoryManager.addEventListener(closeBtn, 'click', () => {
+          memoryManager.cleanup();
+          document.getElementById(CONSTANTS.PANEL_ID)?.remove();
+        });
+      }
+
+      const backBtn = document.getElementById('back-to-main');
+      if (backBtn) {
+        memoryManager.addEventListener(backBtn, 'click', () => {
+          this.showMainView();
+        });
+      }
+
+      // コピーボタンのイベント
+      document.querySelectorAll('.copy-default-format').forEach(button => {
+        memoryManager.addEventListener(button, 'click', async e => {
+          const formatId = e.target.dataset.formatId;
+          const columnType = e.target.dataset.columnType;
+
+          const formats = this.defaultFormatProvider.getDefaultFormatsForType(columnType);
+          const format = formats.find(f => f.id === formatId);
+
+          if (format) {
+            try {
+              await navigator.clipboard.writeText(JSON.stringify(format.formatJson, null, 2));
+              this.showMessage('クリップボードにコピーしました', 'success');
+
+              // ボタンを一時的に変更
+              const originalText = e.target.textContent;
+              e.target.textContent = '✓';
+              memoryManager.setTimeout(() => {
+                e.target.textContent = originalText;
+              }, 1000);
+            } catch (error) {
+              this.showMessage('コピーに失敗しました', 'error');
+            }
+          }
+        });
+      });
+
+      // 保存ボタンのイベント
+      document.querySelectorAll('.save-default-format').forEach(button => {
+        memoryManager.addEventListener(button, 'click', e => {
+          const formatId = e.target.dataset.formatId;
+          const columnType = e.target.dataset.columnType;
+
+          const formats = this.defaultFormatProvider.getDefaultFormatsForType(columnType);
+          const format = formats.find(f => f.id === formatId);
+
+          if (format) {
+            const formatData = {
+              name: `${format.name} (デフォルト)`,
+              description: format.description,
+              columnType: columnType,
+              formatJson: format.formatJson,
+              sourceList: 'デフォルトテンプレート',
+              sourceColumn: '',
+            };
+
+            this.formatManager.saveFormat(formatData);
+            this.showMessage('保存済み書式に追加しました', 'success');
+
+            // ボタンを一時的に変更
+            const originalText = e.target.textContent;
+            e.target.textContent = '✓';
+            memoryManager.setTimeout(() => {
+              e.target.textContent = originalText;
+            }, 1000);
+          }
+        });
+      });
+    }
+
+    // 列タイプの表示名を取得
+    getColumnTypeDisplayName(columnType) {
+      const displayNames = {
+        Number: '数値',
+        Person: 'ユーザーまたはグループ',
+        DateTime: '日付と時刻',
+        Choice: '選択肢',
+        Boolean: 'はい/いいえ',
+        Text: 'テキスト'
+      };
+      return displayNames[columnType] || columnType;
+    }
+
+    // 列タイプのアイコンを取得
+    getColumnTypeIcon(columnType) {
+      const icons = {
+        Number: '🔢',
+        Person: '👤',
+        DateTime: '📅',
+        Choice: '📋',
+        Boolean: '☑️',
+        Text: '📝'
+      };
+      return icons[columnType] || '📄';
+    }
+
+    // 書式のプレビューを生成
+    generateFormatPreview(format, columnType) {
+      try {
+        // 簡易的なプレビュー生成
+        const sampleData = format.sampleData;
+
+        switch (columnType) {
+          case 'Number':
+            if (format.id === 'number-percentage-color') {
+              const color = sampleData >= 80 ? '#107c10' : sampleData >= 60 ? '#ffaa44' : sampleData >= 40 ? '#ff8c00' : '#d13438';
+              return `<div style="background-color: ${color}; color: white; padding: 4px 8px; border-radius: 4px; text-align: center; font-weight: bold; display: inline-block;">${sampleData}%</div>`;
+            } else if (format.id === 'number-progress-bar') {
+              const barColor = sampleData >= 80 ? '#107c10' : sampleData >= 60 ? '#0078d4' : '#ffaa44';
+              return `<div style="background-color: #f3f2f1; border-radius: 10px; height: 20px; position: relative; overflow: hidden; width: 150px;">
+                        <div style="background-color: ${barColor}; height: 100%; width: ${sampleData}%;"></div>
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 12px; font-weight: bold; color: #323130;">${sampleData}%</div>
+                      </div>`;
+            }
+            break;
+          case 'Person':
+            if (format.id === 'person-avatar-name') {
+              return `<div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="width: 32px; height: 32px; border-radius: 50%; background: #0078d4; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px;">👤</div>
+                        <div style="font-weight: 500;">${sampleData.title}</div>
+                      </div>`;
+            } else if (format.id === 'person-card') {
+              return `<div style="background-color: #f8f9fa; border: 1px solid #edebe9; border-radius: 6px; padding: 8px; display: flex; align-items: center; gap: 8px; max-width: 200px;">
+                        <div style="width: 24px; height: 24px; border-radius: 50%; background: #0078d4; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">👤</div>
+                        <div>
+                          <div style="font-size: 13px; font-weight: 600; line-height: 1.2;">${sampleData.title}</div>
+                          <div style="font-size: 11px; color: #605e5c; line-height: 1.2;">${sampleData.email}</div>
+                        </div>
+                      </div>`;
+            }
+            break;
+          case 'DateTime':
+            if (format.id === 'datetime-relative') {
+              return `<div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 14px;">🕒</span>
+                        <span>2024/01/15 (3日前)</span>
+                      </div>`;
+            } else if (format.id === 'datetime-icon-date') {
+              return `<div style="display: flex; align-items: center; gap: 8px; background-color: #f3f2f1; padding: 4px 8px; border-radius: 4px; border-left: 3px solid #0078d4;">
+                        <span style="font-size: 16px;">📅</span>
+                        <span style="font-weight: 500;">2024/02/20</span>
+                      </div>`;
+            }
+            break;
+          case 'Choice':
+            if (format.id === 'choice-color-pill') {
+              const color = sampleData === '完了' ? '#107c10' : sampleData === '進行中' ? '#0078d4' : sampleData === '保留' ? '#ffaa44' : '#8a8886';
+              return `<div style="background-color: ${color}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; text-align: center; display: inline-block;">${sampleData}</div>`;
+            } else if (format.id === 'choice-icon-status') {
+              const icon = sampleData === '完了' ? '✅' : sampleData === '進行中' ? '🔄' : sampleData === '保留' ? '⏸️' : '❓';
+              return `<div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 14px;">${icon}</span>
+                        <span style="font-weight: 500;">${sampleData}</span>
+                      </div>`;
+            }
+            break;
+          case 'Boolean':
+            if (format.id === 'boolean-check-cross') {
+              return `<div style="text-align: center; font-size: 16px;">${sampleData ? '✅' : '❌'}</div>`;
+            } else if (format.id === 'boolean-status-badge') {
+              const color = sampleData ? '#107c10' : '#d13438';
+              const text = sampleData ? 'はい' : 'いいえ';
+              return `<div style="background-color: ${color}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; text-align: center; display: inline-block;">${text}</div>`;
+            }
+            break;
+          case 'Text':
+            if (format.id === 'text-highlight') {
+              return `<div style="background-color: #fff4ce; border-left: 3px solid #ffaa44; padding: 6px 8px; font-weight: 500;">${sampleData}</div>`;
+            } else if (format.id === 'text-badge') {
+              return `<div style="background-color: #0078d4; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; display: inline-block;">${sampleData}</div>`;
+            }
+            break;
+        }
+
+        return `<div style="padding: 8px; color: #605e5c;">プレビューを生成できませんでした</div>`;
+      } catch (error) {
+        return `<div style="padding: 8px; color: #d13438;">プレビューエラー: ${error.message}</div>`;
       }
     }
   }
