@@ -439,7 +439,7 @@
                 {
                   "elmType": "img",
                   "attributes": {
-                    "src": "=getUserImage([$FieldName.email], 'S')"
+                    "src": "=getUserImage(@currentField.email, 'S')"
                   },
                   "style": {
                     "width": "32px",
@@ -450,7 +450,7 @@
                 },
                 {
                   "elmType": "div",
-                  "txtContent": "[$FieldName.title]",
+                  "txtContent": "@currentField.title",
                   "style": {
                     "font-weight": "500"
                   }
@@ -481,7 +481,7 @@
                 {
                   "elmType": "img",
                   "attributes": {
-                    "src": "=getUserImage([$FieldName.email], 'S')"
+                    "src": "=getUserImage(@currentField.email, 'S')"
                   },
                   "style": {
                     "width": "24px",
@@ -494,7 +494,7 @@
                   "children": [
                     {
                       "elmType": "div",
-                      "txtContent": "[$FieldName.title]",
+                      "txtContent": "@currentField.title",
                       "style": {
                         "font-size": "13px",
                         "font-weight": "600",
@@ -503,7 +503,7 @@
                     },
                     {
                       "elmType": "div",
-                      "txtContent": "[$FieldName.email]",
+                      "txtContent": "@currentField.email",
                       "style": {
                         "font-size": "11px",
                         "color": "#605e5c",
