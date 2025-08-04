@@ -469,9 +469,206 @@
                   ]
                 }
               ]
-            }
-            ,
-            sampleData: { title: "田中太郎", email: "tanaka@example.com" }
+            },
+            sampleData: [{ title: "田中太郎", email: "tanaka@example.com" }, { title: "佐藤花子", email: "sato@example.com" }]
+          },
+          {
+            id: 'person-hover-card',
+            name: 'ホバーカード付きユーザー',
+            description: 'ホバー時に詳細カードを表示するユーザー書式',
+            category: 'display',
+            formatJson: {
+              "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/column-formatting.schema.json",
+              "elmType": "div",
+              "style": {
+                "display": "flex",
+                "align-items": "center",
+                "gap": "8px",
+                "flex-wrap": "wrap"
+              },
+              "children": [
+                {
+                  "forEach": "user in @currentField",
+                  "elmType": "div",
+                  "style": {
+                    "display": "flex",
+                    "align-items": "center",
+                    "gap": "8px"
+                  },
+                  "children": [
+                    {
+                      "elmType": "img",
+                      "attributes": {
+                        "src": "=getUserImage([$user.email], 'S')",
+                        "alt": "User Image"
+                      },
+                      "style": {
+                        "width": "32px",
+                        "height": "32px",
+                        "border-radius": "50%",
+                        "border": "2px solid #0078d4"
+                      }
+                    },
+                    {
+                      "elmType": "div",
+                      "txtContent": "[$user.title]",
+                      "style": {
+                        "font-weight": "500"
+                      }
+                    }
+                  ],
+                  "customCardProps": {
+                    "openOnEvent": "hover",
+                    "directionalHint": "bottomCenter",
+                    "isBeakVisible": false,
+                    "formatter": {
+                      "elmType": "div",
+                      "style": {
+                        "width": "400px",
+                        "padding": "20px 24px",
+                        "flex-shrink": "0",
+                        "color": "#333333",
+                        "display": "block"
+                      },
+                      "children": [
+                        {
+                          "elmType": "div",
+                          "style": {
+                            "display": "flex",
+                            "align-items": "center"
+                          },
+                          "children": [
+                            {
+                              "elmType": "img",
+                              "style": {
+                                "width": "72px",
+                                "height": "72px",
+                                "overflow": "hidden",
+                                "border-radius": "50%",
+                                "margin": "2px",
+                                "flex-shrink": "0"
+                              },
+                              "attributes": {
+                                "src": "=@currentWeb + '/_layouts/15/userphoto.aspx?size=M&accountname=' + @currentField.email",
+                                "title": "@currentField.title",
+                                "alt": "='Profile picture of ' + @currentField.title"
+                              }
+                            },
+                            {
+                              "elmType": "div",
+                              "style": {
+                                "margin-left": "12px",
+                                "height": "72px",
+                                "width": "320px"
+                              },
+                              "children": [
+                                {
+                                  "elmType": "div",
+                                  "style": {
+                                    "overflow": "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap"
+                                  },
+                                  "attributes": {
+                                    "class": "ms-fontSize-16 ms-fontWeight-semibold",
+                                    "title": "@currentField.title"
+                                  },
+                                  "txtContent": "@currentField.title"
+                                },
+                                {
+                                  "elmType": "div",
+                                  "txtContent": "@currentField.jobTitle"
+                                },
+                                {
+                                  "elmType": "div",
+                                  "txtContent": "@currentField.department"
+                                },
+                                {
+                                  "elmType": "div",
+                                  "txtContent": "@currentField.email"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "elmType": "div",
+                          "style": {
+                            "margin-top": "5px"
+                          },
+                          "children": [
+                            {
+                              "elmType": "a",
+                              "attributes": {
+                                "class": "ms-fontColor-themePrimary ms-bgColor-gray20--hover",
+                                "href": "='mailto:' + @currentField.email"
+                              },
+                              "style": {
+                                "padding": "10px",
+                                "cursor": "pointer",
+                                "text-decoration": "none",
+                                "display": "=if(length(@currentField.email) == 0, 'none', 'inline-block')"
+                              },
+                              "children": [
+                                {
+                                  "elmType": "span",
+                                  "attributes": {
+                                    "iconName": "Mail",
+                                    "class": "ms-fontSize-16"
+                                  },
+                                  "style": {
+                                    "padding-right": "6px",
+                                    "position": "relative",
+                                    "top": "3px"
+                                  }
+                                },
+                                {
+                                  "elmType": "span",
+                                  "txtContent": "Send email"
+                                }
+                              ]
+                            },
+                            {
+                              "elmType": "a",
+                              "attributes": {
+                                "class": "ms-fontColor-themePrimary ms-bgColor-gray20--hover",
+                                "target": "_blank",
+                                "href": "=@currentWeb + '/_layouts/15/userdisp.aspx?ID=' + @currentField.id"
+                              },
+                              "style": {
+                                "padding": "10px",
+                                "cursor": "pointer",
+                                "text-decoration": "none",
+                                "display": "=if(length(@currentField.email) == 0, 'none', 'inline-block')"
+                              },
+                              "children": [
+                                {
+                                  "elmType": "span",
+                                  "attributes": {
+                                    "iconName": "ContactCard",
+                                    "class": "ms-fontSize-16"
+                                  },
+                                  "style": {
+                                    "padding-right": "6px",
+                                    "position": "relative",
+                                    "top": "3px"
+                                  }
+                                },
+                                {
+                                  "elmType": "span",
+                                  "txtContent": "View Profile"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            sampleData: [{ title: "田中太郎", email: "tanaka@example.com", jobTitle: "開発者", department: "IT部" }]
           },
           {
             id: 'person-card',
