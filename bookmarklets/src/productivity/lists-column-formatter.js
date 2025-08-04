@@ -433,30 +433,44 @@
               "style": {
                 "display": "flex",
                 "align-items": "center",
-                "gap": "8px"
+                "gap": "8px",
+                "flex-wrap": "wrap"
               },
               "children": [
                 {
-                  "elmType": "img",
-                  "attributes": {
-                    "src": "=getUserImage(@currentField.email, 'S')"
-                  },
-                  "style": {
-                    "width": "32px",
-                    "height": "32px",
-                    "border-radius": "50%",
-                    "border": "2px solid #0078d4"
-                  }
-                },
-                {
+                  "forEach": "user in @currentField",
                   "elmType": "div",
-                  "txtContent": "@currentField.title",
                   "style": {
-                    "font-weight": "500"
-                  }
+                    "display": "flex",
+                    "align-items": "center",
+                    "gap": "8px"
+                  },
+                  "children": [
+                    {
+                      "elmType": "img",
+                      "attributes": {
+                        "src": "=getUserImage([$user.email], 'S')",
+                        "alt": "User Image"
+                      },
+                      "style": {
+                        "width": "32px",
+                        "height": "32px",
+                        "border-radius": "50%",
+                        "border": "2px solid #0078d4"
+                      }
+                    },
+                    {
+                      "elmType": "div",
+                      "txtContent": "[$user.title]",
+                      "style": {
+                        "font-weight": "500"
+                      }
+                    }
+                  ]
                 }
               ]
-            },
+            }
+            ,
             sampleData: { title: "田中太郎", email: "tanaka@example.com" }
           },
           {
@@ -515,6 +529,84 @@
               ]
             },
             sampleData: { title: "佐藤花子", email: "sato@example.com" }
+          },
+          {
+            id: 'person-initials-circle',
+            name: 'イニシャル円形',
+            description: 'ユーザーのイニシャルを円形で表示',
+            category: 'display',
+            formatJson: {
+              "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/column-formatting.schema.json",
+              "elmType": "div",
+              "style": {
+                "display": "flex",
+                "align-items": "center",
+                "gap": "8px"
+              },
+              "children": [
+                {
+                  "elmType": "div",
+                  "style": {
+                    "width": "32px",
+                    "height": "32px",
+                    "border-radius": "50%",
+                    "background-color": "#0078d4",
+                    "color": "white",
+                    "display": "flex",
+                    "align-items": "center",
+                    "justify-content": "center",
+                    "font-weight": "600",
+                    "font-size": "14px"
+                  },
+                  "txtContent": "=substring(toUpper(@currentField.title), 0, 1)"
+                },
+                {
+                  "elmType": "div",
+                  "txtContent": "@currentField.title",
+                  "style": {
+                    "font-weight": "500"
+                  }
+                }
+              ]
+            },
+            sampleData: { title: "山田太郎", email: "yamada@example.com" }
+          },
+          {
+            id: 'person-profile-image',
+            name: 'プロフィール画像',
+            description: 'SharePointプロフィール画像を表示',
+            category: 'display',
+            formatJson: {
+              "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/column-formatting.schema.json",
+              "elmType": "div",
+              "style": {
+                "display": "flex",
+                "align-items": "center",
+                "gap": "8px"
+              },
+              "children": [
+                {
+                  "elmType": "img",
+                  "attributes": {
+                    "src": "='/_layouts/15/userphoto.aspx?size=S&username=' + @currentField.email"
+                  },
+                  "style": {
+                    "width": "32px",
+                    "height": "32px",
+                    "border-radius": "50%",
+                    "border": "2px solid #0078d4"
+                  }
+                },
+                {
+                  "elmType": "div",
+                  "txtContent": "@currentField.title",
+                  "style": {
+                    "font-weight": "500"
+                  }
+                }
+              ]
+            },
+            sampleData: { title: "鈴木花子", email: "suzuki@example.com" }
           }
         ],
         DateTime: [
