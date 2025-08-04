@@ -680,24 +680,13 @@
             formatJson: {
               "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/column-formatting.schema.json",
               "elmType": "div",
+              "txtContent": "@currentField",
               "style": {
-                "display": "flex",
-                "align-items": "center",
-                "gap": "6px"
-              },
-              "children": [
-                {
-                  "elmType": "span",
-                  "style": {
-                    "font-size": "14px"
-                  },
-                  "txtContent": "🕒"
-                },
-                {
-                  "elmType": "span",
-                  "txtContent": "=toLocaleDateString(@currentField) + ' (' + toRelativeTime(@currentField) + ')'"
-                }
-              ]
+                "background-color": "=if(@currentField >= @now, '#d4edda', if(@currentField >= addDays(@now, -7), '#fff3cd', '#f8d7da'))",
+                "color": "black",
+                "padding-left": "14px",
+                "font-weight": "bold"
+              }
             },
             sampleData: "2024-01-15T10:00:00Z"
           },
