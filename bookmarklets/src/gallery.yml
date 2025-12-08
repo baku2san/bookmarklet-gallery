@@ -142,6 +142,21 @@ bookmarklets: # Utility Tools
       - 'クイックアクセス'
     enabled: true
 
+  - id: 'sharepoint-storage-viewer'
+    file: 'sharepoint-storage-viewer.js'
+    category: 'productivity'
+    title: 'SharePoint Storage Viewer'
+    icon: '💾'
+    description: 'SharePoint サイトのストレージ使用状況を詳細分析・可視化'
+    features:
+      - 'すべてのドキュメントライブラリを再帰的スキャン'
+      - 'ファイル・フォルダのサイズ集計と階層表示'
+      - 'ソート可能なテーブル表示（名前/サイズ/親フォルダ）'
+      - 'ファイル/フォルダの絞り込みフィルター'
+      - '部分一致検索機能'
+      - 'ファイル・フォルダへの直接リンク'
+    enabled: true
+
   - id: 'lists-column-formatter'
     file: 'lists-column-formatter.js'
     category: 'productivity'
