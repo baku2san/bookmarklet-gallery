@@ -1,10 +1,10 @@
 /**
- * SharePoint Storage Details Viewer - Bookmarklet
+ * SharePoint Storage Details Viewer - Bookmarklet (Search API版)
  *
  * SharePoint のストレージ使用状況を詳細表示する Bookmarklet
  *
  * 機能:
- * - サイト内のすべてのフォルダとファイルを再帰的に取得
+ * - Search API で全ファイルを一括取得（API呼び出し数を大幅削減）
  * - ファイルサイズを集計して階層表示
  * - ソート可能なテーブルで表示
  * - フォルダごとのサイズ集計
@@ -13,6 +13,8 @@
  * 1. SharePoint サイトのページで実行
  * 2. 自動的にデータ取得が開始される
  * 3. モーダルウィンドウで結果を表示
+ *
+ * 注意: Search API はクロールベースのため、直前の変更が反映されない場合があります
  */
 
 (function () {
@@ -61,91 +63,210 @@
     return await response.json();
   }
 
-  // フォルダ内のファイル一覧を取得
-  async function getFilesInFolder(folderUrl) {
-    const endpoint = `/_api/web/GetFolderByServerRelativeUrl('${encodeURIComponent(folderUrl)}')/Files?$select=Name,Length,ServerRelativeUrl,TimeLastModified`;
-    try {
-      const data = await spRestRequest(endpoint);
-      return data.d.results || [];
-    } catch (error) {
-      console.warn(`フォルダ ${folderUrl} のファイル取得に失敗:`, error);
-      return [];
+  // Search API で全ファイルを取得（ページネーション対応）
+  async function getAllFilesBySearch() {
+    const context = getSiteContext();
+    const siteUrl = context.webAbsoluteUrl;
+    const rowLimit = 500; // 1回のリクエストで取得する件数
+    let startRow = 0;
+    const allFiles = [];
+    let totalRetrieved = 0;
+
+    updateProgress('Search API でファイル情報を取得中...');
+
+    while (true) {
+      // クエリ構築: サイト内のドキュメントのみを検索
+      const queryText = `Path:"${siteUrl}" AND IsDocument:1`;
+      const selectProperties = 'Path,Size,Title,LastModifiedTime,FileExtension';
+
+      // エンコードしてエンドポイント構築
+      const encodedQuery = encodeURIComponent(queryText);
+      const encodedSelect = encodeURIComponent(selectProperties);
+      const endpoint = `/_api/search/query?querytext='${encodedQuery}'&selectproperties='${encodedSelect}'&rowlimit=${rowLimit}&startrow=${startRow}&trimduplicates=false`;
+
+      try {
+        const data = await spRestRequest(endpoint);
+
+        // レスポンスからデータを抽出
+        const queryResult = data?.d?.query?.PrimaryQueryResult?.RelevantResults;
+        const rows = queryResult?.Table?.Rows?.results || [];
+        const totalRows = queryResult?.TotalRows || 0;
+
+        if (rows.length === 0) {
+          break; // データがなければ終了
+        }
+
+        // 各行からファイル情報を抽出
+        for (const row of rows) {
+          const cells = row.Cells.results;
+          const fileInfo = {};
+
+          // Cells から Key-Value ペアを抽出
+          cells.forEach(cell => {
+            fileInfo[cell.Key] = cell.Value;
+          });
+
+          const path = fileInfo.Path || '';
+          const size = parseInt(fileInfo.Size, 10) || 0;
+          const modified = fileInfo.LastModifiedTime ? new Date(fileInfo.LastModifiedTime) : null;
+          const title = fileInfo.Title || '';
+
+          // サーバー相対パスに変換（フルURLの場合）
+          let serverRelativePath = path;
+          if (path.startsWith('http')) {
+            try {
+              const url = new URL(path);
+              serverRelativePath = url.pathname;
+            } catch (e) {
+              console.warn('URL解析失敗:', path);
+            }
+          }
+
+          allFiles.push({
+            path: serverRelativePath,
+            name: title || serverRelativePath.split('/').pop(),
+            size: size,
+            modified: modified,
+            type: 'file'
+          });
+
+          totalRetrieved++;
+        }
+
+        updateProgress(`ファイル情報取得中: ${totalRetrieved} / ${totalRows} 件`);
+
+        // 次のページへ
+        if (rows.length < rowLimit || totalRetrieved >= totalRows) {
+          break; // 全件取得完了
+        }
+        startRow += rowLimit;
+
+      } catch (error) {
+        console.error('Search API エラー:', error);
+        throw new Error(`Search API でのファイル取得に失敗しました: ${error.message}`);
+      }
     }
+
+    updateProgress(`全 ${allFiles.length} 件のファイル情報を取得完了`);
+    return allFiles;
   }
 
-  // フォルダ内のサブフォルダ一覧を取得
-  async function getSubFoldersInFolder(folderUrl) {
-    const endpoint = `/_api/web/GetFolderByServerRelativeUrl('${encodeURIComponent(folderUrl)}')/Folders?$select=Name,ServerRelativeUrl,ItemCount`;
-    try {
-      const data = await spRestRequest(endpoint);
-      return data.d.results || [];
-    } catch (error) {
-      console.warn(`フォルダ ${folderUrl} のサブフォルダ取得に失敗:`, error);
-      return [];
-    }
-  }
+  // ファイル一覧からフォルダ階層を構築
+  function buildFolderHierarchy(files) {
+    updateProgress('フォルダ階層を構築中...');
 
-  // 再帰的にフォルダを走査してデータを収集
-  async function scanFolder(folderUrl, depth = 0, parentPath = '') {
-    updateProgress(`スキャン中: ${folderUrl}`);
+    // フォルダごとの情報を保持する Map
+    const folderMap = new Map();
 
-    const folderData = {
-      name: folderUrl.split('/').pop(),
-      path: folderUrl,
-      type: 'folder',
-      depth: depth,
-      parentPath: parentPath,
-      size: 0,
-      fileCount: 0,
-      folderCount: 0,
-      children: []
-    };
+    // ルートフォルダのセット
+    const rootFolders = new Set();
 
-    // ファイルを取得
-    const files = await getFilesInFolder(folderUrl);
+    // 各ファイルを処理
     for (const file of files) {
-      // file.Lengthがundefinedやnullの場合は0として扱う
-      const fileSize = (file.Length != null && !isNaN(file.Length)) ? file.Length : 0;
-      const fileData = {
-        name: file.Name,
-        path: file.ServerRelativeUrl,
-        type: 'file',
-        depth: depth + 1,
-        parentPath: folderUrl,
-        size: fileSize,
-        modified: new Date(file.TimeLastModified)
-      };
-      folderData.children.push(fileData);
-      folderData.size += fileSize;
-      folderData.fileCount++;
       storageData.totalFiles++;
+      storageData.totalSize += file.size;
+
+      const filePath = file.path;
+      const pathSegments = filePath.split('/').filter(s => s);
+
+      // ファイルの親フォルダパスを取得
+      const parentPath = filePath.substring(0, filePath.lastIndexOf('/')) || '/';
+
+      // 親フォルダとその上位フォルダすべてに累積
+      let currentPath = '';
+      for (let i = 0; i < pathSegments.length - 1; i++) {
+        currentPath += '/' + pathSegments[i];
+
+        if (!folderMap.has(currentPath)) {
+          folderMap.set(currentPath, {
+            path: currentPath,
+            name: pathSegments[i],
+            type: 'folder',
+            size: 0,
+            fileCount: 0,
+            folderCount: 0,
+            children: [],
+            childFolders: new Set(),
+            parentPath: i > 0 ? '/' + pathSegments.slice(0, i).join('/') : '/'
+          });
+
+          // ルートレベルのフォルダを記録
+          if (i === 0) {
+            rootFolders.add(currentPath);
+          }
+        }
+
+        // サイズとファイル数を累積
+        const folderInfo = folderMap.get(currentPath);
+        folderInfo.size += file.size;
+        folderInfo.fileCount++;
+      }
+
+      // 直接の親フォルダに子ファイルを追加
+      if (folderMap.has(parentPath)) {
+        folderMap.get(parentPath).children.push(file);
+      }
     }
 
-    // サブフォルダを取得して再帰的にスキャン
-    const subFolders = await getSubFoldersInFolder(folderUrl);
-    for (const subFolder of subFolders) {
-      // システムフォルダをスキップ
-      if (subFolder.Name === 'Forms') continue;
-
-      const subFolderData = await scanFolder(subFolder.ServerRelativeUrl, depth + 1, folderUrl);
-      folderData.children.push(subFolderData);
-      // サブフォルダのサイズが有効な場合のみ加算
-      const subSize = (subFolderData.size != null && !isNaN(subFolderData.size)) ? subFolderData.size : 0;
-      folderData.size += subSize;
-      folderData.fileCount += subFolderData.fileCount;
-      folderData.folderCount += subFolderData.folderCount + 1;
-      storageData.totalFolders++;
+    // 親子関係を構築
+    for (const [path, folder] of folderMap) {
+      const parentPath = folder.parentPath;
+      if (parentPath !== '/' && folderMap.has(parentPath)) {
+        const parent = folderMap.get(parentPath);
+        if (!parent.childFolders.has(path)) {
+          parent.children.push(folder);
+          parent.childFolders.add(path);
+          parent.folderCount++;
+        }
+      }
     }
 
-    storageData.totalSize += folderData.size;
-    return folderData;
-  }
+    // 各フォルダの子フォルダ数を再帰的に計算
+    function calculateFolderCount(folder) {
+      let count = 0;
+      for (const child of folder.children) {
+        if (child.type === 'folder') {
+          count++;
+          count += calculateFolderCount(child);
+        }
+      }
+      folder.folderCount = count;
+      return count;
+    }
 
-  // サイト内のすべてのドキュメントライブラリを取得
-  async function getDocumentLibraries() {
-    const endpoint = `/_api/web/lists?$filter=BaseTemplate eq 101&$select=Title,RootFolder/ServerRelativeUrl&$expand=RootFolder`;
-    const data = await spRestRequest(endpoint);
-    return data.d.results || [];
+    // ルートフォルダを storageData.items に追加
+    const rootItems = [];
+    for (const rootPath of rootFolders) {
+      if (folderMap.has(rootPath)) {
+        const rootFolder = folderMap.get(rootPath);
+        calculateFolderCount(rootFolder);
+
+        // システムフォルダをスキップ
+        if (rootFolder.name === 'Forms' || rootFolder.name === '_catalogs') {
+          continue;
+        }
+
+        rootItems.push(rootFolder);
+        storageData.totalFolders++;
+      }
+    }
+
+    // フォルダ数をカウント
+    storageData.totalFolders = folderMap.size;
+
+    // 深さ情報を付与（表示用）
+    function assignDepth(items, depth = 0) {
+      for (const item of items) {
+        item.depth = depth;
+        if (item.children && item.children.length > 0) {
+          assignDepth(item.children, depth + 1);
+        }
+      }
+    }
+    assignDepth(rootItems);
+
+    updateProgress('フォルダ階層の構築完了');
+    return rootItems;
   }
 
   // ファイルサイズを人間が読める形式に変換
@@ -201,7 +322,14 @@
     for (const item of items) {
       html += createTableRow(item, level);
       if (item.children && item.children.length > 0) {
-        html += generateTableRows(item.children, level + 1);
+        // 子要素をソート（フォルダ優先、次にサイズ降順）
+        const sortedChildren = [...item.children].sort((a, b) => {
+          if (a.type !== b.type) {
+            return a.type === 'folder' ? -1 : 1;
+          }
+          return b.size - a.size;
+        });
+        html += generateTableRows(sortedChildren, level + 1);
       }
     }
     return html;
@@ -316,7 +444,7 @@
                         justify-content: space-between;
                         align-items: center;
                     ">
-                        <h2 style="margin: 0; font-size: 24px;">SharePoint ストレージ詳細</h2>
+                        <h2 style="margin: 0; font-size: 24px;">SharePoint ストレージ詳細 <span style="font-size: 14px; color: #666;">(Search API版)</span></h2>
                         <button id="sp-storage-close" style="
                             background: #d32f2f;
                             color: white;
@@ -333,6 +461,9 @@
                             <div><strong>合計サイズ:</strong> ${formatBytes(storageData.totalSize)}</div>
                             <div><strong>ファイル数:</strong> ${storageData.totalFiles.toLocaleString()}</div>
                             <div><strong>フォルダ数:</strong> ${storageData.totalFolders.toLocaleString()}</div>
+                        </div>
+                        <div style="margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; font-size: 14px;">
+                            <strong>注意:</strong> Search API はクロールベースのため、直前の変更が反映されない場合があります
                         </div>
                         <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
                             <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
@@ -365,10 +496,10 @@
                         ">
                             <thead>
                                 <tr style="background: #333; color: white;">
-                                    <th style="padding: 12px; text-align: left; cursor: pointer; width: 35%; resize: horizontal; overflow: auto; position: relative;" data-column="0">名前</th>
-                                    <th style="padding: 12px; text-align: left; cursor: pointer; width: 15%; resize: horizontal; overflow: auto;" data-column="1">サイズ</th>
-                                    <th style="padding: 12px; text-align: left; width: 20%; resize: horizontal; overflow: auto;">内容</th>
-                                    <th style="padding: 12px; text-align: left; cursor: pointer; width: 30%; resize: horizontal; overflow: auto;" data-column="3">親フォルダ</th>
+                                    <th style="padding: 12px; text-align: left; cursor: pointer; width: 35%;" data-column="0">名前 ↕</th>
+                                    <th style="padding: 12px; text-align: left; cursor: pointer; width: 15%;" data-column="1">サイズ ↕</th>
+                                    <th style="padding: 12px; text-align: left; width: 20%;">内容</th>
+                                    <th style="padding: 12px; text-align: left; cursor: pointer; width: 30%;" data-column="3">親フォルダ ↕</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -463,41 +594,39 @@
     }
   }
 
-  // メイン処理
+  // メイン処理（Search API版）
   async function main() {
     try {
       showLoading();
 
-      // サイトコンテキストを取得
       const context = getSiteContext();
-      updateProgress('ドキュメントライブラリを取得中...');
+      console.log('SharePoint コンテキスト:', context);
 
-      // ドキュメントライブラリを取得
-      const libraries = await getDocumentLibraries();
+      // Search API で全ファイルを取得
+      const files = await getAllFilesBySearch();
 
-      if (libraries.length === 0) {
-        alert('ドキュメントライブラリが見つかりませんでした。');
+      if (files.length === 0) {
+        alert('ファイルが見つかりませんでした。検索インデックスが更新されていない可能性があります。');
         hideLoading();
         return;
       }
 
-      updateProgress(`${libraries.length} 個のライブラリを発見しました。スキャンを開始します...`);
-
-      // 各ライブラリをスキャン
-      for (const library of libraries) {
-        const folderUrl = library.RootFolder.ServerRelativeUrl;
-        const folderData = await scanFolder(folderUrl, 0, '');
-        folderData.name = library.Title;
-        storageData.items.push(folderData);
-      }
+      // フォルダ階層を構築
+      storageData.items = buildFolderHierarchy(files);
 
       hideLoading();
       displayResults();
 
+      console.log('取得完了:', {
+        totalFiles: storageData.totalFiles,
+        totalFolders: storageData.totalFolders,
+        totalSize: formatBytes(storageData.totalSize)
+      });
+
     } catch (error) {
       hideLoading();
       console.error('エラーが発生しました:', error);
-      alert(`エラーが発生しました: ${error.message}`);
+      alert(`エラーが発生しました: ${error.message}\n\n詳細はコンソールを確認してください。`);
     }
   }
 
