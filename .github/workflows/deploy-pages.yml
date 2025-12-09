@@ -41,7 +41,7 @@ jobs:
       - name: Create public directory
         run: |
           mkdir -p public
-          cp -r bookmarklets/build/* public/
+          cp -r bookmarklets/dist/* public/
           cp -r assets public/ 2>/dev/null || :
           cp README.md public/ 2>/dev/null || :
 
