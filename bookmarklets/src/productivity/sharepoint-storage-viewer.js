@@ -1,9 +1,10 @@
 /**
- * SharePoint Storage Details Viewer - Bookmarklet (Search API版)
+ * SharePoint Storage Details Viewer - Bookmarklet (サイト・ライブラリ選択対応版)
  *
  * SharePoint のストレージ使用状況を詳細表示する Bookmarklet
  *
  * 機能:
+ * - サイトとドキュメントライブラリの選択（自動/手動）
  * - Search API で全ファイルを一括取得（API呼び出し数を大幅削減）
  * - ファイルサイズを集計して階層表示
  * - ソート可能なテーブルで表示
@@ -11,8 +12,12 @@
  *
  * 使用方法:
  * 1. SharePoint サイトのページで実行
- * 2. 自動的にデータ取得が開始される
- * 3. モーダルウィンドウで結果を表示
+ * 2. 自動的に利用可能なサイトを検出
+ * 3. サイトが複数ある場合は選択ダイアログを表示
+ * 4. 選択されたサイトのドキュメントライブラリを表示
+ * 5. ライブラリが複数ある場合は選択ダイアログを表示
+ * 6. 選択されたライブラリの解析を開始
+ * 7. モーダルウィンドウで結果を表示
  *
  * 注意: Search API はクロールベースのため、直前の変更が反映されない場合があります
  */
@@ -28,45 +33,353 @@
     items: []
   };
 
-  // SharePoint コンテキスト情報の取得
+  // SharePoint コンテキスト情報の取得（堅牢版）
   function getSiteContext() {
-    if (typeof _spPageContextInfo === 'undefined') {
-      throw new Error('SharePoint コンテキストが見つかりません。SharePoint サイトで実行してください。');
+    // まず _spPageContextInfo を試す
+    if (typeof _spPageContextInfo !== 'undefined' && _spPageContextInfo) {
+      return {
+        webAbsoluteUrl: _spPageContextInfo.webAbsoluteUrl,
+        webServerRelativeUrl: _spPageContextInfo.webServerRelativeUrl,
+        siteServerRelativeUrl: _spPageContextInfo.siteServerRelativeUrl,
+        siteAbsoluteUrl: _spPageContextInfo.siteAbsoluteUrl,
+        source: '_spPageContextInfo'
+      };
     }
-    return {
-      webAbsoluteUrl: _spPageContextInfo.webAbsoluteUrl,
-      webServerRelativeUrl: _spPageContextInfo.webServerRelativeUrl,
-      siteServerRelativeUrl: _spPageContextInfo.siteServerRelativeUrl
-    };
+
+    // フォールバック: URL から SharePoint サイト情報を抽出
+    const currentUrl = window.location.href;
+    const urlMatch = currentUrl.match(/^https:\/\/([^\/]+)\/sites\/([^\/]+)/);
+
+    if (urlMatch) {
+      const tenant = urlMatch[1];
+      const siteName = urlMatch[2];
+      const siteUrl = `https://${tenant}/sites/${siteName}`;
+
+      return {
+        webAbsoluteUrl: siteUrl,
+        webServerRelativeUrl: `/sites/${siteName}`,
+        siteServerRelativeUrl: `/sites/${siteName}`,
+        siteAbsoluteUrl: siteUrl,
+        source: 'url-parsing'
+      };
+    }
+
+    // さらにフォールバック: 一般的な SharePoint URL パターン
+    const generalMatch = currentUrl.match(/^https:\/\/([^\/]+)\.sharepoint\.com/);
+    if (generalMatch) {
+      const tenant = generalMatch[1];
+      const siteUrl = `https://${tenant}.sharepoint.com`;
+
+      return {
+        webAbsoluteUrl: siteUrl,
+        webServerRelativeUrl: '/',
+        siteServerRelativeUrl: '/',
+        siteAbsoluteUrl: siteUrl,
+        source: 'general-sharepoint'
+      };
+    }
+
+    throw new Error('SharePoint コンテキストが見つかりません。このページは SharePoint サイトのページではありません。');
   }
 
-  // REST API リクエストヘルパー
-  async function spRestRequest(endpoint, method = 'GET') {
+  // 利用可能なサイトを取得（現在のサイトと子サイト）
+  async function getAvailableSites() {
     const context = getSiteContext();
-    const url = `${context.webAbsoluteUrl}${endpoint}`;
+    const sites = [];
 
-    const headers = {
-      'Accept': 'application/json;odata=verbose',
-      'Content-Type': 'application/json;odata=verbose'
-    };
-
-    const response = await fetch(url, {
-      method: method,
-      headers: headers,
-      credentials: 'include'
+    // 現在のサイトを追加
+    sites.push({
+      title: '現在のサイト',
+      url: context.webAbsoluteUrl,
+      serverRelativeUrl: context.webServerRelativeUrl,
+      isCurrent: true
     });
 
-    if (!response.ok) {
-      throw new Error(`API エラー: ${response.status} ${response.statusText}`);
+    try {
+      // 子サイトを取得
+      const endpoint = `/_api/web/webs?$select=Title,Url,ServerRelativeUrl`;
+      const data = await spRestRequest(endpoint);
+      const subSites = data.d.results || [];
+
+      for (const subSite of subSites) {
+        sites.push({
+          title: subSite.Title,
+          url: subSite.Url,
+          serverRelativeUrl: subSite.ServerRelativeUrl,
+          isCurrent: false
+        });
+      }
+    } catch (error) {
+      console.warn('子サイトの取得に失敗:', error);
+      // 子サイト取得失敗しても現在のサイトは使える
     }
 
-    return await response.json();
+    return sites;
+  }
+
+  // 指定サイトのドキュメントライブラリを取得
+  async function getDocumentLibraries(siteUrl) {
+    // 一時的にコンテキストを変更して指定サイトのライブラリを取得
+    const originalUrl = getSiteContext().webAbsoluteUrl;
+    const tempContext = { ...getSiteContext(), webAbsoluteUrl: siteUrl };
+
+    const endpoint = `/_api/web/lists?$filter=BaseTemplate eq 101&$select=Title,RootFolder/ServerRelativeUrl&$expand=RootFolder`;
+
+    try {
+      const url = `${siteUrl}${endpoint}`;
+      const headers = {
+        'Accept': 'application/json;odata=verbose',
+        'Content-Type': 'application/json;odata=verbose'
+      };
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: headers,
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error(`API エラー: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.d.results || [];
+    } catch (error) {
+      console.error(`サイト ${siteUrl} のライブラリ取得に失敗:`, error);
+      throw error;
+    }
+  }
+
+  // サイト選択ダイアログを表示
+  function showSiteSelectionDialog(sites) {
+    return new Promise((resolve) => {
+      const modalHtml = `
+        <div id="sp-site-selection-modal" style="
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.7);
+          z-index: 10001;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        ">
+          <div style="
+            background: white;
+            width: 500px;
+            max-height: 80%;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+          ">
+            <div style="
+              padding: 20px;
+              border-bottom: 1px solid #ddd;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            ">
+              <h2 style="margin: 0; font-size: 20px;">対象サイトを選択</h2>
+              <button id="sp-site-close" style="
+                background: #d32f2f;
+                color: white;
+                border: none;
+                padding: 8px 12px;
+                border-radius: 4px;
+                cursor: pointer;
+              ">✕</button>
+            </div>
+
+            <div style="padding: 20px; flex: 1; overflow-y: auto;">
+              <p style="margin-bottom: 15px; color: #666;">ストレージ解析を行うサイトを選択してください：</p>
+              <div id="site-list" style="display: flex; flex-direction: column; gap: 10px;">
+                ${sites.map((site, index) => `
+                  <label style="
+                    display: flex;
+                    align-items: center;
+                    padding: 12px;
+                    border: 2px solid #e0e0e0;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    transition: border-color 0.2s;
+                    ${site.isCurrent ? 'border-color: #0078d4; background: #f0f8ff;' : ''}
+                  " onmouseover="this.style.borderColor='#0078d4'" onmouseout="this.style.borderColor='${site.isCurrent ? '#0078d4' : '#e0e0e0'}'">
+                    <input type="radio" name="selected-site" value="${index}" style="margin-right: 12px;" ${index === 0 ? 'checked' : ''}>
+                    <div>
+                      <div style="font-weight: bold; color: #333;">${escapeHtml(site.title)}</div>
+                      <div style="font-size: 12px; color: #666; word-break: break-all;">${escapeHtml(site.url)}</div>
+                      ${site.isCurrent ? '<div style="font-size: 11px; color: #0078d4; font-weight: bold;">現在のサイト</div>' : ''}
+                    </div>
+                  </label>
+                `).join('')}
+              </div>
+            </div>
+
+            <div style="padding: 20px; border-top: 1px solid #ddd; display: flex; justify-content: flex-end; gap: 10px;">
+              <button id="site-cancel" style="
+                background: #666;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                cursor: pointer;
+              ">キャンセル</button>
+              <button id="site-select" style="
+                background: #0078d4;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                cursor: pointer;
+              ">選択</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+      document.getElementById('sp-site-close').addEventListener('click', () => {
+        document.getElementById('sp-site-selection-modal').remove();
+        resolve(null);
+      });
+
+      document.getElementById('site-cancel').addEventListener('click', () => {
+        document.getElementById('sp-site-selection-modal').remove();
+        resolve(null);
+      });
+
+      document.getElementById('site-select').addEventListener('click', () => {
+        const selectedRadio = document.querySelector('input[name="selected-site"]:checked');
+        if (selectedRadio) {
+          const selectedIndex = parseInt(selectedRadio.value);
+          document.getElementById('sp-site-selection-modal').remove();
+          resolve(sites[selectedIndex]);
+        }
+      });
+    });
+  }
+
+  // ライブラリ選択ダイアログを表示
+  function showLibrarySelectionDialog(site, libraries) {
+    return new Promise((resolve) => {
+      const modalHtml = `
+        <div id="sp-library-selection-modal" style="
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.7);
+          z-index: 10001;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        ">
+          <div style="
+            background: white;
+            width: 600px;
+            max-height: 80%;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+          ">
+            <div style="
+              padding: 20px;
+              border-bottom: 1px solid #ddd;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            ">
+              <h2 style="margin: 0; font-size: 20px;">ドキュメントライブラリを選択</h2>
+              <button id="sp-library-close" style="
+                background: #d32f2f;
+                color: white;
+                border: none;
+                padding: 8px 12px;
+                border-radius: 4px;
+                cursor: pointer;
+              ">✕</button>
+            </div>
+
+            <div style="padding: 20px; flex: 1; overflow-y: auto;">
+              <p style="margin-bottom: 15px; color: #666;">
+                <strong>${escapeHtml(site.title)}</strong> のドキュメントライブラリを選択してください：
+              </p>
+              <div id="library-list" style="display: flex; flex-direction: column; gap: 10px;">
+                ${libraries.map((library, index) => `
+                  <label style="
+                    display: flex;
+                    align-items: center;
+                    padding: 12px;
+                    border: 2px solid #e0e0e0;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    transition: border-color 0.2s;
+                  " onmouseover="this.style.borderColor='#0078d4'" onmouseout="this.style.borderColor='#e0e0e0'">
+                    <input type="radio" name="selected-library" value="${index}" style="margin-right: 12px;" ${index === 0 ? 'checked' : ''}>
+                    <div style="flex: 1;">
+                      <div style="font-weight: bold; color: #333;">${escapeHtml(library.Title)}</div>
+                      <div style="font-size: 12px; color: #666; word-break: break-all;">${escapeHtml(library.RootFolder.ServerRelativeUrl)}</div>
+                    </div>
+                  </label>
+                `).join('')}
+              </div>
+            </div>
+
+            <div style="padding: 20px; border-top: 1px solid #ddd; display: flex; justify-content: flex-end; gap: 10px;">
+              <button id="library-cancel" style="
+                background: #666;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                cursor: pointer;
+              ">キャンセル</button>
+              <button id="library-select" style="
+                background: #0078d4;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                cursor: pointer;
+              ">解析開始</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+      document.getElementById('sp-library-close').addEventListener('click', () => {
+        document.getElementById('sp-library-selection-modal').remove();
+        resolve(null);
+      });
+
+      document.getElementById('library-cancel').addEventListener('click', () => {
+        document.getElementById('sp-library-selection-modal').remove();
+        resolve(null);
+      });
+
+      document.getElementById('library-select').addEventListener('click', () => {
+        const selectedRadio = document.querySelector('input[name="selected-library"]:checked');
+        if (selectedRadio) {
+          const selectedIndex = parseInt(selectedRadio.value);
+          document.getElementById('sp-library-selection-modal').remove();
+          resolve(libraries[selectedIndex]);
+        }
+      });
+    });
   }
 
   // Search API で全ファイルを取得（ページネーション対応）
-  async function getAllFilesBySearch() {
-    const context = getSiteContext();
-    const siteUrl = context.webAbsoluteUrl;
+  async function getAllFilesBySearch(siteUrl, libraryPath = null) {
     const rowLimit = 500; // 1回のリクエストで取得する件数
     let startRow = 0;
     const allFiles = [];
@@ -76,7 +389,24 @@
 
     while (true) {
       // クエリ構築: サイト内のドキュメントのみを検索
-      const queryText = `Path:"${siteUrl}" AND IsDocument:1`;
+      let queryText = `Path:"${siteUrl}" AND IsDocument:1`;
+
+      // 特定のライブラリが指定されている場合はサーバー相対パスから絶対URLを作成してプレフィックス検索
+      if (libraryPath) {
+        try {
+          // libraryPath はサーバー相対パス (例: /sites/TestForTeams/Shared Documents)
+          // siteUrl はサイトの絶対URL (例: https://tenant.sharepoint.com/sites/TestForTeams)
+          const origin = new URL(siteUrl).origin;
+          const fullLibUrl = origin + (libraryPath.startsWith('/') ? libraryPath : ('/' + libraryPath));
+          // 検索クエリではプレフィックスで一致させるためワイルドカード形式を併用
+          // 例: Path:"https://tenant.sharepoint.com/sites/TestForTeams/Shared Documents" OR Path:"https://.../Shared Documents/*"
+          queryText += ` AND (Path:\"${fullLibUrl}\" OR Path:\"${fullLibUrl}/*\")`;
+        } catch (e) {
+          // URL構築に失敗したらフォールバックしてライブラリパスをそのまま使う
+          queryText += ` AND Path:"${libraryPath}"`;
+        }
+      }
+
       const selectProperties = 'Path,Size,Title,LastModifiedTime,FileExtension';
 
       // エンコードしてエンドポイント構築
@@ -85,7 +415,24 @@
       const endpoint = `/_api/search/query?querytext='${encodedQuery}'&selectproperties='${encodedSelect}'&rowlimit=${rowLimit}&startrow=${startRow}&trimduplicates=false`;
 
       try {
-        const data = await spRestRequest(endpoint);
+        // 選択されたサイトに対してAPIリクエスト
+        const url = `${siteUrl}${endpoint}`;
+        const headers = {
+          'Accept': 'application/json;odata=verbose',
+          'Content-Type': 'application/json;odata=verbose'
+        };
+
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: headers,
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          throw new Error(`API エラー: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
 
         // レスポンスからデータを抽出
         const queryResult = data?.d?.query?.PrimaryQueryResult?.RelevantResults;
@@ -594,30 +941,93 @@
     }
   }
 
-  // メイン処理（Search API版）
+  // メイン処理（サイト・ライブラリ選択対応版）
   async function main() {
     try {
       showLoading();
+      updateProgress('SharePoint コンテキストを確認中...');
 
+      // SharePoint コンテキストを取得
       const context = getSiteContext();
       console.log('SharePoint コンテキスト:', context);
+      updateProgress(`サイト検出完了 (${context.source})`);
 
-      // Search API で全ファイルを取得
-      const files = await getAllFilesBySearch();
+      updateProgress('利用可能なサイトを検出中...');
 
-      if (files.length === 0) {
-        alert('ファイルが見つかりませんでした。検索インデックスが更新されていない可能性があります。');
+      // 1. 利用可能なサイトを取得
+      const availableSites = await getAvailableSites();
+
+      if (availableSites.length === 0) {
+        throw new Error('利用可能なサイトが見つかりません。');
+      }
+
+      let selectedSite;
+
+      // 2. サイト選択（複数ある場合はダイアログ表示、単一の場合は自動選択）
+      if (availableSites.length === 1) {
+        selectedSite = availableSites[0];
+        updateProgress(`対象サイト: ${selectedSite.title}`);
+      } else {
+        hideLoading(); // ダイアログ表示前にローディングを隠す
+        selectedSite = await showSiteSelectionDialog(availableSites);
+        if (!selectedSite) {
+          console.log('サイト選択がキャンセルされました');
+          return; // キャンセルされた場合
+        }
+        showLoading(); // 再度ローディングを表示
+      }
+
+      updateProgress(`サイト「${selectedSite.title}」のドキュメントライブラリを取得中...`);
+
+      // 3. 選択されたサイトのドキュメントライブラリを取得
+      const libraries = await getDocumentLibraries(selectedSite.url);
+
+      if (libraries.length === 0) {
+        alert(`サイト「${selectedSite.title}」にドキュメントライブラリが見つかりませんでした。`);
         hideLoading();
         return;
       }
 
-      // フォルダ階層を構築
+      let selectedLibrary;
+
+      // 4. ライブラリ選択（複数ある場合はダイアログ表示、単一の場合は自動選択）
+      if (libraries.length === 1) {
+        selectedLibrary = libraries[0];
+        updateProgress(`対象ライブラリ: ${selectedLibrary.Title}`);
+      } else {
+        hideLoading(); // ダイアログ表示前にローディングを隠す
+        selectedLibrary = await showLibrarySelectionDialog(selectedSite, libraries);
+        if (!selectedLibrary) {
+          console.log('ライブラリ選択がキャンセルされました');
+          return; // キャンセルされた場合
+        }
+        showLoading(); // 再度ローディングを表示
+      }
+
+      console.log('選択された設定:', {
+        site: selectedSite,
+        library: selectedLibrary
+      });
+
+      // 5. Search API で選択されたライブラリのファイルを取得
+      const libraryPath = selectedLibrary.RootFolder.ServerRelativeUrl;
+      const files = await getAllFilesBySearch(selectedSite.url, libraryPath);
+
+      if (files.length === 0) {
+        alert(`ライブラリ「${selectedLibrary.Title}」にファイルが見つかりませんでした。検索インデックスが更新されていない可能性があります。`);
+        hideLoading();
+        return;
+      }
+
+      // 6. フォルダ階層を構築
       storageData.items = buildFolderHierarchy(files);
 
       hideLoading();
       displayResults();
 
-      console.log('取得完了:', {
+      console.log('解析完了:', {
+        site: selectedSite.title,
+        library: selectedLibrary.Title,
         totalFiles: storageData.totalFiles,
         totalFolders: storageData.totalFolders,
         totalSize: formatBytes(storageData.totalSize)
