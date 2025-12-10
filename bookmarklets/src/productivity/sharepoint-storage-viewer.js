@@ -448,9 +448,14 @@
           const cells = row.Cells.results;
           const fileInfo = {};
 
-          // Cells から Key-Value ペアを抽出
+          // Cells から Key-Value ペアを抽出（キーを小文字正規化して保存）
           cells.forEach(cell => {
-            fileInfo[cell.Key] = cell.Value;
+            if (!cell || !cell.Key) return;
+            const key = String(cell.Key);
+            const lower = key.toLowerCase();
+            // オリジナルキーと小文字キーの両方を保持（互換性のため）
+            fileInfo[key] = cell.Value;
+            fileInfo[lower] = cell.Value;
           });
 
           const path = fileInfo.Path || '';
@@ -469,12 +474,35 @@
             }
           }
 
+          // 拡張子を抽出: まず Search API の FileExtension（大文字小文字を吸収）を優先、なければファイル名から取得
+          const name = title || serverRelativePath.split('/').pop();
+          let ext = '';
+          const fileExtCandidates = [
+            fileInfo.FileExtension,
+            fileInfo.fileextension,
+            fileInfo['FileExtension'],
+            fileInfo['fileextension']
+          ];
+
+          for (const candidate of fileExtCandidates) {
+            if (candidate != null && String(candidate).trim() !== '') {
+              ext = String(candidate).replace(/^\./, '').toLowerCase();
+              break;
+            }
+          }
+
+          if (!ext) {
+            const extMatch = name.match(/\.([^.]+)$/);
+            ext = extMatch ? extMatch[1].toLowerCase() : '';
+          }
+
           allFiles.push({
             path: serverRelativePath,
-            name: title || serverRelativePath.split('/').pop(),
+            name: name,
             size: size,
             modified: modified,
-            type: 'file'
+            type: 'file',
+            ext: ext
           });
 
           totalRetrieved++;
@@ -650,6 +678,7 @@
             <tr class="sp-storage-row" data-type="${item.type}" data-depth="${level}" data-path="${escapeHtml(item.path)}">
                 <td style="word-break: break-word;">${indent}${icon} <span class="item-name" style="color: #0078d4; cursor: pointer; text-decoration: underline;">${escapeHtml(item.name)}</span></td>
                 <td class="sp-storage-size" data-size="${item.size}">${sizeText}</td>
+                <td class="sp-storage-ext" data-ext="${item.ext || ''}">${item.type === 'file' ? escapeHtml(item.ext || '') : ''}</td>
                 <td>${countText}</td>
                 <td title="${parentPath}" style="word-break: break-word;"><span class="parent-path" style="color: #0078d4; cursor: pointer; text-decoration: underline;">${escapeHtml(parentPath)}</span></td>
             </tr>
@@ -687,6 +716,8 @@
     const showFiles = document.getElementById('filter-files').checked;
     const showFolders = document.getElementById('filter-folders').checked;
     const searchText = document.getElementById('filter-search').value.toLowerCase();
+    const extFilterEl = document.getElementById('filter-ext');
+    const extFilter = extFilterEl ? extFilterEl.value.toLowerCase() : '';
 
     const rows = document.querySelectorAll('#sp-storage-table tbody tr');
     rows.forEach(row => {
@@ -706,8 +737,16 @@
           parentCell.toLowerCase().includes(searchText);
       }
 
+      // 拡張子フィルター
+      let extMatch = true;
+      if (extFilter) {
+        const extCell = row.querySelector('.sp-storage-ext');
+        const rowExt = extCell ? (extCell.dataset.ext || '').toLowerCase() : '';
+        extMatch = rowExt === extFilter;
+      }
+
       // 両方の条件を満たす場合のみ表示
-      if (typeMatch && textMatch) {
+      if (typeMatch && textMatch && extMatch) {
         row.style.display = '';
       } else {
         row.style.display = 'none';
@@ -821,10 +860,11 @@
                                 <input type="checkbox" id="filter-folders" checked style="cursor: pointer;">
                                 <span>フォルダ</span>
                             </label>
-                            <input type="text" id="filter-search" placeholder="部分一致検索..."
+                            <select id="filter-ext" style="padding:5px 10px; border:1px solid #ccc; border-radius:4px;">
+                              <option value="">拡張子で絞り込み (すべて)</option>
+                            </select>
+                            <input type="text" id="filter-search" placeholder="部分一致検索... (即時反映)"
                                    style="padding: 5px 10px; border: 1px solid #ccc; border-radius: 4px; width: 250px;">
-                            <button id="apply-filter" style="background: #0078d4; color: white; border: none;
-                                    padding: 5px 15px; border-radius: 4px; cursor: pointer;">フィルター適用</button>
                             <button id="clear-filter" style="background: #666; color: white; border: none;
                                     padding: 5px 15px; border-radius: 4px; cursor: pointer;">クリア</button>
                         </div>
@@ -843,10 +883,11 @@
                         ">
                             <thead>
                                 <tr style="background: #333; color: white;">
-                                    <th style="padding: 12px; text-align: left; cursor: pointer; width: 35%;" data-column="0">名前 ↕</th>
-                                    <th style="padding: 12px; text-align: left; cursor: pointer; width: 15%;" data-column="1">サイズ ↕</th>
-                                    <th style="padding: 12px; text-align: left; width: 20%;">内容</th>
-                                    <th style="padding: 12px; text-align: left; cursor: pointer; width: 30%;" data-column="3">親フォルダ ↕</th>
+                                  <th style="padding: 12px; text-align: left; cursor: pointer; width: 35%; position: relative;" data-column="0">名前 ↕</th>
+                                  <th style="padding: 12px; text-align: left; cursor: pointer; width: 12%; position: relative;" data-column="1">サイズ ↕</th>
+                                  <th style="padding: 12px; text-align: left; cursor: pointer; width: 10%; position: relative;" data-column="2">拡張子 ↕</th>
+                                  <th style="padding: 12px; text-align: left; width: 18%;" data-column="3" title="ファイル数 / フォルダ数">内容 (ファイル/フォルダ)</th>
+                                  <th style="padding: 12px; text-align: left; cursor: pointer; width: 25%; position: relative;" data-column="4">親フォルダ ↕</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -860,10 +901,119 @@
 
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 
+    // 拡張子ドロップダウンを充填
+    try {
+      const extSet = new Set();
+      function collectExts(items) {
+        for (const it of items) {
+          if (it.type === 'file' && it.ext) extSet.add(it.ext);
+          if (it.children && it.children.length) collectExts(it.children);
+        }
+      }
+      collectExts(storageData.items || []);
+      const extSelect = document.getElementById('filter-ext');
+      if (extSelect) {
+        // 既存のオプションを残して追加
+        const exts = Array.from(extSet).sort();
+        for (const e of exts) {
+          const opt = document.createElement('option');
+          opt.value = e;
+          opt.textContent = e;
+          extSelect.appendChild(opt);
+        }
+      }
+    } catch (e) {
+      console.warn('拡張子ドロップダウンの生成に失敗:', e);
+    }
+
     // イベントリスナーを設定
     document.getElementById('sp-storage-close').addEventListener('click', () => {
       document.getElementById('sp-storage-modal').remove();
     });
+
+    // 列幅の自動判定（最初の10件を基に）
+    (function autoSizeColumns() {
+      try {
+        const table = document.getElementById('sp-storage-table');
+        const tbodyRows = Array.from(table.querySelectorAll('tbody tr')).slice(0, 10);
+        if (tbodyRows.length === 0) return;
+
+        const colCount = table.querySelectorAll('thead th').length;
+        const widths = new Array(colCount).fill(0);
+
+        // 仮の要素を使ってテキスト幅を計測
+        const measurer = document.createElement('span');
+        measurer.style.visibility = 'hidden';
+        measurer.style.whiteSpace = 'nowrap';
+        document.body.appendChild(measurer);
+
+        function measureText(text, styleEl) {
+          measurer.textContent = text;
+          return measurer.offsetWidth;
+        }
+
+        tbodyRows.forEach(row => {
+          Array.from(row.cells).forEach((cell, idx) => {
+            const txt = cell.textContent || '';
+            const w = measureText(txt);
+            if (w > widths[idx]) widths[idx] = w;
+          });
+        });
+
+        // ヘッダーに幅を反映（パディング余裕を少し追加）
+        const ths = table.querySelectorAll('thead th');
+        ths.forEach((th, i) => {
+          if (widths[i]) th.style.width = (widths[i] + 40) + 'px';
+        });
+
+        measurer.remove();
+      } catch (e) {
+        console.warn('自動列幅判定に失敗:', e);
+      }
+    })();
+
+    // 列リサイズ（シンプル実装）
+    (function attachResizers() {
+      try {
+        const table = document.getElementById('sp-storage-table');
+        const ths = table.querySelectorAll('thead th');
+        ths.forEach(th => {
+          const resizer = document.createElement('div');
+          resizer.style.position = 'absolute';
+          resizer.style.top = '0';
+          resizer.style.right = '0';
+          resizer.style.width = '6px';
+          resizer.style.cursor = 'col-resize';
+          resizer.style.userSelect = 'none';
+          resizer.style.height = '100%';
+          th.style.position = 'relative';
+          th.appendChild(resizer);
+
+          let startX, startWidth;
+          resizer.addEventListener('mousedown', (e) => {
+            startX = e.clientX;
+            startWidth = th.offsetWidth;
+            document.body.style.cursor = 'col-resize';
+
+            function onMouseMove(ev) {
+              const dx = ev.clientX - startX;
+              th.style.width = Math.max(40, startWidth + dx) + 'px';
+            }
+
+            function onMouseUp() {
+              document.removeEventListener('mousemove', onMouseMove);
+              document.removeEventListener('mouseup', onMouseUp);
+              document.body.style.cursor = '';
+            }
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+          });
+        });
+      } catch (e) {
+        console.warn('列リサイズの初期化に失敗:', e);
+      }
+    })();
 
     // ソート機能
     const headers = document.querySelectorAll('#sp-storage-table th[data-column]');
@@ -876,12 +1026,12 @@
       });
     });
 
-    // フィルター機能
-    document.getElementById('apply-filter').addEventListener('click', applyFilter);
+    // フィルター機能（即時反映）
+    const extEl = document.getElementById('filter-ext');
+    if (extEl) extEl.addEventListener('change', applyFilter);
     document.getElementById('clear-filter').addEventListener('click', clearFilter);
-    document.getElementById('filter-search').addEventListener('keyup', (e) => {
-      if (e.key === 'Enter') applyFilter();
-    });
+    const searchEl = document.getElementById('filter-search');
+    if (searchEl) searchEl.addEventListener('input', applyFilter);
     document.getElementById('filter-files').addEventListener('change', applyFilter);
     document.getElementById('filter-folders').addEventListener('change', applyFilter);
 
