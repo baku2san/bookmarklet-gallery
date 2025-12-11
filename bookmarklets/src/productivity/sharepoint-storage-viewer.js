@@ -587,11 +587,8 @@
   }
 
   // ファイル一覧からフォルダ階層を構築
-  function buildFolderHierarchy(files, libraryBasePath = null) {
+  function buildFolderHierarchy(files) {
     updateProgress('フォルダ階層を構築中...');
-
-    // ライブラリのベースパスを正規化（末尾のスラッシュを除去）
-    const basePath = libraryBasePath ? libraryBasePath.replace(/\/$/, '') : null;
 
     // フォルダごとの情報を保持する Map
     const folderMap = new Map();
@@ -604,18 +601,7 @@
       storageData.totalFiles++;
       storageData.totalSize += file.size;
 
-      let filePath = file.path;
-
-      // ベースパスが指定されている場合、それ以下の相対パスを使用
-      if (basePath && filePath.startsWith(basePath)) {
-        // ベースパスより下の部分のみを使用（例: /Shared Documents/folder/file.txt → /folder/file.txt）
-        filePath = filePath.substring(basePath.length) || '/';
-        // 先頭にスラッシュがない場合は追加
-        if (!filePath.startsWith('/')) {
-          filePath = '/' + filePath;
-        }
-      }
-
+      const filePath = file.path;
       const pathSegments = filePath.split('/').filter(s => s);
 
       // ファイルの親フォルダパスを取得
@@ -1268,8 +1254,8 @@
         return;
       }
 
-      // 6. フォルダ階層を構築（ライブラリパスを渡してそれ以下のみ表示）
-      storageData.items = buildFolderHierarchy(files, libraryPath);
+      // 6. フォルダ階層を構築
+      storageData.items = buildFolderHierarchy(files);
 
       hideLoading();
       displayResults();
