@@ -388,8 +388,8 @@
     updateProgress('Search API でファイル情報を取得中...');
 
     while (true) {
-      // クエリ構築: サイト内のドキュメントのみを検索
-      let queryText = `Path:"${siteUrl}" AND IsDocument:1`;
+      // クエリ構築: サイト内の全アイテムを検索（ドキュメント、フォルダ、リストアイテムを含む）
+      let queryText = `Path:"${siteUrl}"`;
 
       // 特定のライブラリが指定されている場合はサーバー相対パスから絶対URLを作成してプレフィックス検索
       if (libraryPath) {
@@ -407,7 +407,7 @@
         }
       }
 
-      const selectProperties = 'Path,Size,Title,LastModifiedTime,FileExtension';
+      const selectProperties = 'Path,Size,Title,LastModifiedTime,FileExtension,DocIcon,FileType,IsContainer';
 
       // エンコードしてエンドポイント構築
       const encodedQuery = encodeURIComponent(queryText);
@@ -474,26 +474,52 @@
             }
           }
 
-          // 拡張子を抽出: まず Search API の FileExtension（大文字小文字を吸収）を優先、なければファイル名から取得
+          // 拡張子を抽出: FileExtensionがフォームページ(aspxなど)でなければ優先、そうでなければFileTypeを使用
           const name = title || serverRelativePath.split('/').pop();
           let ext = '';
-          const fileExtCandidates = [
-            fileInfo.FileExtension,
-            fileInfo.fileextension,
-            fileInfo['FileExtension'],
-            fileInfo['fileextension']
-          ];
+          const isContainer = fileInfo.IsContainer === true || fileInfo.iscontainer === true || fileInfo['IsContainer'] === true;
 
-          for (const candidate of fileExtCandidates) {
-            if (candidate != null && String(candidate).trim() !== '') {
-              ext = String(candidate).replace(/^\./, '').toLowerCase();
+          // フォルダの場合はスキップ
+          if (isContainer) {
+            continue;
+          }
+
+          // 拡張子決定ロジック
+          const fileExt = fileInfo.FileExtension || fileInfo.fileextension || fileInfo['FileExtension'];
+          const fileType = fileInfo.FileType || fileInfo.filetype || fileInfo['FileType'];
+
+          if (fileExt && String(fileExt).toLowerCase() !== 'aspx') {
+            ext = String(fileExt).replace(/^\./, '').toLowerCase();
+          } else if (fileType) {
+            ext = String(fileType).replace(/^\./, '').toLowerCase();
+          }
+
+          // それでも拡張子が取れない場合はファイル名から
+          if (!ext) {
+            const extMatch = name.match(/\.([^.]+)$/);
+            ext = extMatch ? extMatch[1].toLowerCase() : '';
+          }
+
+          // DocIcon が null の場合は拡張子ベースでフォールバックアイコンURLを作成
+          let docIcon = null;
+          const docIconCandidates = [fileInfo.DocIcon, fileInfo.docicon, fileInfo['DocIcon'], fileInfo['docicon']];
+          for (const c of docIconCandidates) {
+            if (c != null && String(c).trim() !== '') {
+              docIcon = String(c);
               break;
             }
           }
 
-          if (!ext) {
-            const extMatch = name.match(/\.([^.]+)$/);
-            ext = extMatch ? extMatch[1].toLowerCase() : '';
+          if (!docIcon && ext) {
+            // SharePoint の標準アイコンパスを利用: /_layouts/15/images/ic<ext>.png
+            // 例: icxlsx.png, icmp4.png など。ファイルによっては存在しない場合もある。
+            try {
+              const origin = new URL(siteUrl).origin;
+              const safeExt = encodeURIComponent(ext);
+              docIcon = `${origin}/_layouts/15/images/ic${safeExt}.png`;
+            } catch (e) {
+              docIcon = null;
+            }
           }
 
           allFiles.push({
@@ -502,7 +528,8 @@
             size: size,
             modified: modified,
             type: 'file',
-            ext: ext
+            ext: ext,
+            docIcon: docIcon
           });
 
           totalRetrieved++;
@@ -668,19 +695,44 @@
   // テーブル行を生成
   function createTableRow(item, level = 0) {
     const indent = '&nbsp;&nbsp;'.repeat(level);
-    const icon = item.type === 'folder' ? '📁' : '📄';
+
+    // アイコン: SharePointアイコンを使用（DocIconまたは拡張子ベース）
+    let icon;
+    if (item.type === 'folder') {
+      icon = '📁';
+    } else if (item.docIcon) {
+      // SharePointアイコンURLを使用（相対パスの場合は現在のサイトのoriginを付加）
+      const iconUrl = item.docIcon.startsWith('http') ? item.docIcon : `${window.location.origin}${item.docIcon}`;
+      icon = `<img src="${escapeHtml(iconUrl)}" alt="" style="width: 16px; height: 16px; vertical-align: middle;">`;
+    } else {
+      // DocIconが取得できなかった場合は拡張子ベースのアイコンを使用
+      const safeExt = encodeURIComponent(item.ext || 'unknown');
+      const origin = window.location.origin;
+      const iconUrl = `${origin}/_layouts/15/images/ic${safeExt}.png`;
+      icon = `<img src="${escapeHtml(iconUrl)}" alt="" style="width: 16px; height: 16px; vertical-align: middle;">`;
+    }
+
     const sizeText = formatBytes(item.size);
     const countText = item.type === 'folder' ? `${item.fileCount}ファイル, ${item.folderCount}フォルダ` : '';
-    // 親フォルダパスを取得（パスから最後のセグメントを除いたもの）
+
+    // 親フォルダパスを取得してデコード表示
     const parentPath = item.path.substring(0, item.path.lastIndexOf('/')) || '/';
+    const decodedParentPath = decodeURIComponent(parentPath);
+
+    // 名前をデコードして拡張子付きで表示（重複チェック）
+    const decodedName = decodeURIComponent(item.name);
+    let displayName = decodedName;
+    if (item.ext && !decodedName.toLowerCase().endsWith(`.${item.ext.toLowerCase()}`)) {
+      displayName += '.' + item.ext;
+    }
 
     return `
             <tr class="sp-storage-row" data-type="${item.type}" data-depth="${level}" data-path="${escapeHtml(item.path)}">
-                <td style="word-break: break-word;">${indent}${icon} <span class="item-name" style="color: #0078d4; cursor: pointer; text-decoration: underline;">${escapeHtml(item.name)}</span></td>
+                <td style="word-break: break-word;">${indent}${icon} <span class="item-name" style="color: #0078d4; cursor: pointer; text-decoration: underline;">${escapeHtml(displayName)}</span></td>
                 <td class="sp-storage-size" data-size="${item.size}">${sizeText}</td>
                 <td class="sp-storage-ext" data-ext="${item.ext || ''}">${item.type === 'file' ? escapeHtml(item.ext || '') : ''}</td>
                 <td>${countText}</td>
-                <td title="${parentPath}" style="word-break: break-word;"><span class="parent-path" style="color: #0078d4; cursor: pointer; text-decoration: underline;">${escapeHtml(parentPath)}</span></td>
+                <td title="${decodedParentPath}" style="word-break: break-word;"><span class="parent-path" style="color: #0078d4; cursor: pointer; text-decoration: underline;">${escapeHtml(decodedParentPath)}</span></td>
             </tr>
         `;
   }
