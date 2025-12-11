@@ -407,7 +407,7 @@
         }
       }
 
-      const selectProperties = 'Path,Size,Title,LastModifiedTime,FileExtension,DocIcon,FileType,IsContainer';
+      const selectProperties = 'Path,Size,Title,LastModifiedTime,FileExtension,DocIcon,FileType,IsContainer,ParentLink';
 
       // エンコードしてエンドポイント構築
       const encodedQuery = encodeURIComponent(queryText);
@@ -462,6 +462,7 @@
           const size = parseInt(fileInfo.Size, 10) || 0;
           const modified = fileInfo.LastModifiedTime ? new Date(fileInfo.LastModifiedTime) : null;
           const title = fileInfo.Title || '';
+          const parentLink = fileInfo.ParentLink || fileInfo.parentlink || '';
 
           // サーバー相対パスに変換（フルURLの場合）
           let serverRelativePath = path;
@@ -469,6 +470,30 @@
             try {
               const url = new URL(path);
               serverRelativePath = url.pathname;
+
+              // DispForm.aspxの場合は実際のファイルパスを再構築
+              if (serverRelativePath.includes('/Forms/DispForm.aspx')) {
+                // ParentLinkからライブラリパスを取得
+                if (parentLink) {
+                  try {
+                    const parentUrl = new URL(parentLink);
+                    let libraryPath = parentUrl.pathname;
+                    // AllItems.aspxの場合は除去
+                    libraryPath = libraryPath.replace(/\/Forms\/AllItems\.aspx$/, '');
+                    // 拡張子を先に取得（後で使用）
+                    const tempFileType = fileInfo.FileType || fileInfo.filetype || '';
+                    const tempExt = tempFileType ? String(tempFileType).replace(/^\./, '') : '';
+                    // ファイルパスを再構築: LibraryPath / Title.ext
+                    if (tempExt) {
+                      serverRelativePath = `${libraryPath}/${title}.${tempExt}`;
+                    } else {
+                      serverRelativePath = `${libraryPath}/${title}`;
+                    }
+                  } catch (e) {
+                    console.warn('ParentLink解析失敗:', parentLink);
+                  }
+                }
+              }
             } catch (e) {
               console.warn('URL解析失敗:', path);
             }
@@ -522,6 +547,14 @@
             }
           }
 
+          // デバッグ: パス情報をコンソールに出力
+          console.log('ファイル情報:', {
+            name: name,
+            path: serverRelativePath,
+            ext: ext,
+            size: size
+          });
+
           allFiles.push({
             path: serverRelativePath,
             name: name,
@@ -554,8 +587,11 @@
   }
 
   // ファイル一覧からフォルダ階層を構築
-  function buildFolderHierarchy(files) {
+  function buildFolderHierarchy(files, libraryBasePath = null) {
     updateProgress('フォルダ階層を構築中...');
+
+    // ライブラリのベースパスを正規化（末尾のスラッシュを除去）
+    const basePath = libraryBasePath ? libraryBasePath.replace(/\/$/, '') : null;
 
     // フォルダごとの情報を保持する Map
     const folderMap = new Map();
@@ -568,7 +604,18 @@
       storageData.totalFiles++;
       storageData.totalSize += file.size;
 
-      const filePath = file.path;
+      let filePath = file.path;
+
+      // ベースパスが指定されている場合、それ以下の相対パスを使用
+      if (basePath && filePath.startsWith(basePath)) {
+        // ベースパスより下の部分のみを使用（例: /Shared Documents/folder/file.txt → /folder/file.txt）
+        filePath = filePath.substring(basePath.length) || '/';
+        // 先頭にスラッシュがない場合は追加
+        if (!filePath.startsWith('/')) {
+          filePath = '/' + filePath;
+        }
+      }
+
       const pathSegments = filePath.split('/').filter(s => s);
 
       // ファイルの親フォルダパスを取得
@@ -1221,8 +1268,8 @@
         return;
       }
 
-      // 6. フォルダ階層を構築
-      storageData.items = buildFolderHierarchy(files);
+      // 6. フォルダ階層を構築（ライブラリパスを渡してそれ以下のみ表示）
+      storageData.items = buildFolderHierarchy(files, libraryPath);
 
       hideLoading();
       displayResults();
