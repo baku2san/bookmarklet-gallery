@@ -464,6 +464,16 @@
           const title = fileInfo.Title || '';
           const parentLink = fileInfo.ParentLink || fileInfo.parentlink || '';
 
+          // IsContainerの早期チェック（文字列"true"も含む）
+          const isContainerValue = fileInfo.IsContainer || fileInfo.iscontainer || fileInfo['IsContainer'];
+          const isContainer = isContainerValue === true || isContainerValue === 'true' || String(isContainerValue).toLowerCase() === 'true';
+
+          // フォルダの場合は早期にスキップ
+          if (isContainer) {
+            console.log('フォルダをスキップ:', { title, isContainerValue, path });
+            continue;
+          }
+
           // サーバー相対パスに変換（フルURLの場合）
           let serverRelativePath = path;
           if (path.startsWith('http')) {
@@ -502,12 +512,6 @@
           // 拡張子を抽出: FileExtensionがフォームページ(aspxなど)でなければ優先、そうでなければFileTypeを使用
           const name = title || serverRelativePath.split('/').pop();
           let ext = '';
-          const isContainer = fileInfo.IsContainer === true || fileInfo.iscontainer === true || fileInfo['IsContainer'] === true;
-
-          // フォルダの場合はスキップ
-          if (isContainer) {
-            continue;
-          }
 
           // 拡張子決定ロジック
           const fileExt = fileInfo.FileExtension || fileInfo.fileextension || fileInfo['FileExtension'];
