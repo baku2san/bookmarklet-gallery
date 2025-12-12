@@ -733,6 +733,15 @@
   function createTableRow(item, level = 0) {
     const indent = '&nbsp;&nbsp;'.repeat(level);
 
+    // フォルダの展開アイコン（初期状態は展開されているので▼）
+    let expandIcon = '';
+    const hasChildren = item.children && item.children.length > 0;
+    if (item.type === 'folder' && hasChildren) {
+      expandIcon = '<span class="folder-toggle" style="cursor: pointer; user-select: none; margin-right: 4px; font-size: 12px;">▼</span>';
+    } else if (item.type === 'folder') {
+      expandIcon = '<span style="margin-right: 4px; opacity: 0.3;">▶</span>';
+    }
+
     // アイコン: SharePointアイコンを使用（DocIconまたは拡張子ベース）
     let icon;
     if (item.type === 'folder') {
@@ -764,8 +773,8 @@
     }
 
     return `
-            <tr class="sp-storage-row" data-type="${item.type}" data-depth="${level}" data-path="${escapeHtml(item.path)}">
-                <td style="word-break: break-word;">${indent}${icon} <span class="item-name" style="color: #0078d4; cursor: pointer; text-decoration: underline;">${escapeHtml(displayName)}</span></td>
+            <tr class="sp-storage-row" data-type="${item.type}" data-depth="${level}" data-path="${escapeHtml(item.path)}" data-has-children="${hasChildren}">
+                <td style="word-break: break-word;">${indent}${expandIcon}${icon} <span class="item-name" style="color: #0078d4; cursor: pointer; text-decoration: underline;">${escapeHtml(displayName)}</span></td>
                 <td class="sp-storage-size" data-size="${item.size}">${sizeText}</td>
                 <td class="sp-storage-ext" data-ext="${item.ext || ''}">${item.type === 'file' ? escapeHtml(item.ext || '') : ''}</td>
                 <td>${countText}</td>
@@ -1143,6 +1152,42 @@
         if (parentPath && parentPath !== '/') {
           const fullUrl = `${window.location.origin}${parentPath}`;
           window.open(fullUrl, '_blank');
+        }
+      });
+    });
+
+    // フォルダ展開/折りたたみの処理
+    document.querySelectorAll('.folder-toggle').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const row = e.target.closest('tr');
+        const currentDepth = parseInt(row.dataset.depth);
+        const isExpanded = e.target.textContent === '▼';
+
+        // アイコンを切り替え
+        e.target.textContent = isExpanded ? '▶' : '▼';
+
+        // 次の行から、同じまたはより深い階層の行を探して表示/非表示
+        let nextRow = row.nextElementSibling;
+        while (nextRow && parseInt(nextRow.dataset.depth) > currentDepth) {
+          const nextDepth = parseInt(nextRow.dataset.depth);
+          if (nextDepth === currentDepth + 1) {
+            // 直接の子要素
+            nextRow.style.display = isExpanded ? 'none' : '';
+          } else {
+            // 孫要素以降：親が折りたたまれたら非表示
+            nextRow.style.display = isExpanded ? 'none' : nextRow.style.display;
+          }
+
+          // 折りたたみ時：すべての子孫フォルダのアイコンを閉じた状態にリセット
+          if (isExpanded) {
+            const childToggleIcon = nextRow.querySelector('.folder-toggle');
+            if (childToggleIcon) {
+              childToggleIcon.textContent = '▶';
+            }
+          }
+
+          nextRow = nextRow.nextElementSibling;
         }
       });
     });
