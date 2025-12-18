@@ -32,6 +32,10 @@
     totalFolders: 0,
     items: []
   };
+  // バージョン情報キャッシュ（セッション単位）
+  const versionsCache = new Map(); // key: serverRelativePath -> { versions: [], totalSize: number, fetchedAt: Date }
+  // 現在選択されたサイト情報（main() 実行時に設定される）
+  const currentSiteInfo = { absoluteUrl: '', serverRelativeUrl: '' };
 
   // SharePoint コンテキスト情報の取得（堅牢版）
   function getSiteContext() {
@@ -476,6 +480,9 @@
 
           // サーバー相対パスに変換（フルURLの場合）
           let serverRelativePath = path;
+          let name = title;
+          let ext = '';
+
           if (path.startsWith('http')) {
             try {
               const url = new URL(path);
@@ -495,25 +502,26 @@
                     const tempExt = tempFileType ? String(tempFileType).replace(/^\./, '') : '';
                     // ファイルパスを再構築: LibraryPath / Title.ext
                     if (tempExt) {
-                      serverRelativePath = `${libraryPath}/${title}.${tempExt}`;
+                      serverRelativePath = libraryPath + '/' + title + '.' + tempExt;
                     } else {
-                      serverRelativePath = `${libraryPath}/${title}`;
+                      serverRelativePath = libraryPath + '/' + title;
                     }
+                    console.log('DispForm.aspx パス再構築:', { original: path, reconstructed: serverRelativePath });
                   } catch (e) {
-                    console.warn('ParentLink解析失敗:', parentLink);
+                    console.warn('ParentLink パース失敗:', e);
                   }
+                } else {
+                  // ParentLinkがない場合はスキップ
+                  console.warn('DispForm.aspx だが ParentLink なし:', path);
+                  continue;
                 }
               }
             } catch (e) {
-              console.warn('URL解析失敗:', path);
+              console.warn('URL パース失敗:', path, e);
             }
           }
 
-          // 拡張子を抽出: FileExtensionがフォームページ(aspxなど)でなければ優先、そうでなければFileTypeを使用
-          const name = title || serverRelativePath.split('/').pop();
-          let ext = '';
-
-          // 拡張子決定ロジック
+          // 拡張子を取得
           const fileExt = fileInfo.FileExtension || fileInfo.fileextension || fileInfo['FileExtension'];
           const fileType = fileInfo.FileType || fileInfo.filetype || fileInfo['FileType'];
 
@@ -538,18 +546,7 @@
               break;
             }
           }
-
-          if (!docIcon && ext) {
-            // SharePoint の標準アイコンパスを利用: /_layouts/15/images/ic<ext>.png
-            // 例: icxlsx.png, icmp4.png など。ファイルによっては存在しない場合もある。
-            try {
-              const origin = new URL(siteUrl).origin;
-              const safeExt = encodeURIComponent(ext);
-              docIcon = `${origin}/_layouts/15/images/ic${safeExt}.png`;
-            } catch (e) {
-              docIcon = null;
-            }
-          }
+          // 注意: フォールバックアイコンは大量の404を発生させるため行わない
 
           // デバッグ: パス情報をコンソールに出力
           console.log('ファイル情報:', {
@@ -747,15 +744,11 @@
     if (item.type === 'folder') {
       icon = '📁';
     } else if (item.docIcon) {
-      // SharePointアイコンURLを使用（相対パスの場合は現在のサイトのoriginを付加）
       const iconUrl = item.docIcon.startsWith('http') ? item.docIcon : `${window.location.origin}${item.docIcon}`;
       icon = `<img src="${escapeHtml(iconUrl)}" alt="" style="width: 16px; height: 16px; vertical-align: middle;">`;
     } else {
-      // DocIconが取得できなかった場合は拡張子ベースのアイコンを使用
-      const safeExt = encodeURIComponent(item.ext || 'unknown');
-      const origin = window.location.origin;
-      const iconUrl = `${origin}/_layouts/15/images/ic${safeExt}.png`;
-      icon = `<img src="${escapeHtml(iconUrl)}" alt="" style="width: 16px; height: 16px; vertical-align: middle;">`;
+      // フォールバックは画像取得で404を発生させないように絵文字を使用
+      icon = '📄';
     }
 
     const sizeText = formatBytes(item.size);
@@ -776,11 +769,113 @@
             <tr class="sp-storage-row" data-type="${item.type}" data-depth="${level}" data-path="${escapeHtml(item.path)}" data-has-children="${hasChildren}">
                 <td style="word-break: break-word;">${indent}${expandIcon}${icon} <span class="item-name" style="color: #0078d4; cursor: pointer; text-decoration: underline;">${escapeHtml(displayName)}</span></td>
                 <td class="sp-storage-size" data-size="${item.size}">${sizeText}</td>
+                <td class="sp-storage-versions-total versions-col" data-versions-total="">${item.type === 'folder' ? '' : ''}</td>
+                <td class="sp-storage-versions-count versions-col" data-versions-count="">${item.type === 'folder' ? '' : ''}</td>
                 <td class="sp-storage-ext" data-ext="${item.ext || ''}">${item.type === 'file' ? escapeHtml(item.ext || '') : ''}</td>
                 <td>${countText}</td>
                 <td title="${decodedParentPath}" style="word-break: break-word;"><span class="parent-path" style="color: #0078d4; cursor: pointer; text-decoration: underline;">${escapeHtml(decodedParentPath)}</span></td>
             </tr>
         `;
+  }
+
+  // 指定ファイルのバージョン情報を取得（キャッシュ付き）
+  async function fetchVersionsForFile(serverRelativePath) {
+    if (!serverRelativePath) return null;
+    try {
+      if (versionsCache.has(serverRelativePath)) {
+        return versionsCache.get(serverRelativePath);
+      }
+      // サーバー相対パスを正規化して site プレフィックスを含める
+      let decodedPath = serverRelativePath;
+      try { decodedPath = decodeURIComponent(serverRelativePath); } catch (e) { /* ignore */ }
+
+      // currentSiteInfo.serverRelativeUrl を先頭に付与すべきか判断
+      let fullServerPath = decodedPath;
+      const sitePrefix = currentSiteInfo.serverRelativeUrl || '';
+      // サイトプレフィックスが既に含まれているか、またはパスがルート形式(/sites/)ならそのまま
+      if (!(fullServerPath.startsWith(sitePrefix) || fullServerPath.startsWith('/sites/') || fullServerPath.startsWith('/teams/'))) {
+        // 絶対的なサーバー相対パスに変換
+        const trimmed = fullServerPath.replace(/^\/+/, '');
+        const prefix = sitePrefix.replace(/\/+$/, '');
+        fullServerPath = prefix + '/' + trimmed;
+      }
+
+      // OData の単一引用符に含める際のエスケープ
+      const safePath = fullServerPath.replace(/'/g, "''");
+      // API ベースは選択サイトの absoluteUrl を使う（例: https://.../sites/TestForTeams/_api/...）
+      const base = currentSiteInfo.absoluteUrl || window.location.origin;
+      const endpoint = `${base}/_api/web/GetFileByServerRelativeUrl('${encodeURIComponent(safePath)}')/Versions`;
+
+      console.log('Fetch Versions API endpoint:', endpoint, { original: serverRelativePath, fullServerPath, safePath });
+      const resp = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json;odata=verbose'
+        },
+        credentials: 'include'
+      });
+
+      if (!resp.ok) {
+        // キャッシュに空のエントリを入れてリトライを避ける
+        versionsCache.set(serverRelativePath, { versions: [], totalSize: 0, fetchedAt: new Date(), errorStatus: resp.status });
+        return versionsCache.get(serverRelativePath);
+      }
+
+      const data = await resp.json();
+      const results = data?.d?.results || [];
+
+      // サイズはバージョンオブジェクトの Size または size のいずれかに存在する可能性がある
+      let total = 0;
+      const versions = results.map(v => {
+        const size = parseInt(v.Size || v.size || 0, 10) || 0;
+        total += size;
+        return {
+          label: v.VersionLabel || v.versionLabel || '',
+          created: v.Created || v.created || null,
+          size: size
+        };
+      });
+
+      const entry = { versions: versions, totalSize: total, fetchedAt: new Date() };
+      versionsCache.set(serverRelativePath, entry);
+      return entry;
+    } catch (e) {
+      versionsCache.set(serverRelativePath, { versions: [], totalSize: 0, fetchedAt: new Date(), error: e.message });
+      return versionsCache.get(serverRelativePath);
+    }
+  }
+
+  // 行にバージョン情報を反映する
+  function updateRowWithVersions(serverRelativePath, entry) {
+    try {
+      const rows = document.querySelectorAll(`#sp-storage-table tbody tr[data-path]`);
+      for (const row of rows) {
+        const rp = row.getAttribute('data-path');
+        if (!rp) continue;
+        // data-path はエスケープされている可能性があるためデコードして比較
+        let a = rp;
+        let b = serverRelativePath;
+        try { a = decodeURIComponent(rp); } catch (e) { /* ignore */ }
+        try { b = decodeURIComponent(serverRelativePath); } catch (e) { /* ignore */ }
+        if (a === b) {
+          const cntCell = row.querySelector('.sp-storage-versions-count');
+          const totCell = row.querySelector('.sp-storage-versions-total');
+          if (entry && entry.versions && entry.versions.length > 0) {
+            cntCell.textContent = String(entry.versions.length);
+            cntCell.setAttribute('data-versions-count', String(entry.versions.length));
+            totCell.textContent = formatBytes(entry.totalSize || 0);
+            totCell.setAttribute('data-versions-total', String(entry.totalSize || 0));
+            // タイトルに詳細を追加
+            totCell.title = entry.versions.map(v => `${v.label}:${formatBytes(v.size)}`).join('\n');
+          } else {
+            cntCell.textContent = '-';
+            totCell.textContent = '-';
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('行の更新に失敗:', e);
+    }
   }
 
   // HTML エスケープ
@@ -899,6 +994,12 @@
     }
 
     const modalHtml = `
+            <style>
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            </style>
             <div id="sp-storage-modal" style="
                 position: fixed;
                 top: 0;
@@ -922,27 +1023,35 @@
                     overflow: hidden;
                 ">
                     <div style="
-                        padding: 20px;
-                        border-bottom: 1px solid #ddd;
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
+                      padding: 20px;
+                      border-bottom: 1px solid #ddd;
+                      display: flex;
+                      justify-content: space-between;
+                      align-items: center;
                     ">
-                        <h2 style="margin: 0; font-size: 24px;">SharePoint ストレージ詳細 <span style="font-size: 14px; color: #666;">(Search API版)</span></h2>
+                      <h2 style="margin: 0; font-size: 24px;">SharePoint ストレージ詳細 <span style="font-size: 14px; color: #666;">(Search API版)</span></h2>
+                      <div style="display:flex; align-items:center; gap:12px;">
+                        <label style="display:flex; align-items:center; gap:6px; font-size:14px;">
+                        <input type="checkbox" id="chk-show-versions-columns" style="cursor:pointer;">
+                        <span>バージョンを含める（初回のみ取得）</span>
+                        <div id="version-spinner" style="display:none; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; width: 16px; height: 16px; animation: spin 2s linear infinite;"></div>
+                        </label>
                         <button id="sp-storage-close" style="
-                            background: #d32f2f;
-                            color: white;
-                            border: none;
-                            padding: 10px 20px;
-                            border-radius: 4px;
-                            cursor: pointer;
-                            font-size: 16px;
+                          background: #d32f2f;
+                          color: white;
+                          border: none;
+                          padding: 10px 20px;
+                          border-radius: 4px;
+                          cursor: pointer;
+                          font-size: 16px;
                         ">閉じる</button>
+                      </div>
                     </div>
 
                     <div style="padding: 20px; background: #f5f5f5;">
                         <div style="display: flex; gap: 30px; font-size: 16px; margin-bottom: 15px;">
                             <div><strong>合計サイズ:</strong> ${formatBytes(storageData.totalSize)}</div>
+                            <div id="versions-total-size" style="display:none;"><strong>バージョン込み:</strong> <span id="versions-total-size-value">-</span></div>
                             <div><strong>ファイル数:</strong> ${storageData.totalFiles.toLocaleString()}</div>
                             <div><strong>フォルダ数:</strong> ${storageData.totalFolders.toLocaleString()}</div>
                         </div>
@@ -981,11 +1090,13 @@
                         ">
                             <thead>
                                 <tr style="background: #333; color: white;">
-                                  <th style="padding: 12px; text-align: left; cursor: pointer; width: 35%; position: relative;" data-column="0">名前 ↕</th>
-                                  <th style="padding: 12px; text-align: left; cursor: pointer; width: 12%; position: relative;" data-column="1">サイズ ↕</th>
-                                  <th style="padding: 12px; text-align: left; cursor: pointer; width: 10%; position: relative;" data-column="2">拡張子 ↕</th>
-                                  <th style="padding: 12px; text-align: left; width: 18%;" data-column="3" title="ファイル数 / フォルダ数">内容 (ファイル/フォルダ)</th>
-                                  <th style="padding: 12px; text-align: left; cursor: pointer; width: 25%; position: relative;" data-column="4">親フォルダ ↕</th>
+                                  <th style="padding: 12px; text-align: left; cursor: pointer; width: 30%; position: relative;" data-column="0">名前 ↕</th>
+                                  <th style="padding: 12px; text-align: left; cursor: pointer; width: 10%; position: relative;" data-column="1">サイズ ↕</th>
+                                  <th class="versions-col" style="padding: 12px; text-align: left; cursor: pointer; width: 8%; position: relative; display:none;" data-column="2">バージョン数 ↕</th>
+                                  <th class="versions-col" style="padding: 12px; text-align: left; cursor: pointer; width: 10%; position: relative; display:none;" data-column="3">バージョン合計 ↕</th>
+                                  <th style="padding: 12px; text-align: left; cursor: pointer; width: 8%; position: relative;" data-column="4">拡張子 ↕</th>
+                                  <th style="padding: 12px; text-align: left; width: 14%;" data-column="5" title="ファイル数 / フォルダ数">内容 (ファイル/フォルダ)</th>
+                                  <th style="padding: 12px; text-align: left; cursor: pointer; width: 20%; position: relative;" data-column="6">親フォルダ ↕</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1191,6 +1302,93 @@
         }
       });
     });
+
+    // バージョン列の表示切替と初回取得ロジック
+    const chk = document.getElementById('chk-show-versions-columns');
+    function setVersionsColumnsVisible(visible) {
+      const cols = document.querySelectorAll('.versions-col');
+      cols.forEach(c => c.style.display = visible ? '' : 'none');
+      // バージョン込み合計サイズの表示も連動
+      const versionsTotalEl = document.getElementById('versions-total-size');
+      if (versionsTotalEl) {
+        versionsTotalEl.style.display = visible ? '' : 'none';
+      }
+    }
+
+    async function fetchVersionsForVisibleFiles() {
+      // スピナーを表示
+      const spinner = document.getElementById('version-spinner');
+      if (spinner) spinner.style.display = 'inline-block';
+
+      // バージョン込み合計サイズを積算（0から開始）
+      let versionsTotalSize = 0;
+
+      // 逐次実行（過負荷防止）：1件ずつ遅延を入れて実行
+      const rows = Array.from(document.querySelectorAll('#sp-storage-table tbody tr[data-type="file"]'));
+      for (const row of rows) {
+        const serverPath = row.getAttribute('data-path');
+        if (!serverPath) continue;
+
+        // 元のファイルサイズを取得
+        const sizeCell = row.querySelector('.sp-storage-size');
+        const originalSize = sizeCell ? parseInt(sizeCell.getAttribute('data-size') || '0', 10) : 0;
+
+        // 既にキャッシュがあれば即時反映
+        if (versionsCache.has(serverPath)) {
+          const entry = versionsCache.get(serverPath);
+          updateRowWithVersions(serverPath, entry);
+          // 現在のファイルサイズを加算
+          versionsTotalSize += originalSize;
+          // バージョン情報がある場合はバージョンサイズも加算
+          if (entry && entry.totalSize && !entry.errorStatus) {
+            versionsTotalSize += entry.totalSize;
+          }
+          continue;
+        }
+        // フェッチ
+        try {
+          updateProgress(`バージョン情報を取得中: ${serverPath}`);
+          const entry = await fetchVersionsForFile(serverPath);
+          updateRowWithVersions(serverPath, entry);
+          // 現在のファイルサイズを加算
+          versionsTotalSize += originalSize;
+          // バージョン情報がある場合はバージョンサイズも加算
+          if (entry && entry.totalSize && !entry.errorStatus) {
+            versionsTotalSize += entry.totalSize;
+          }
+          // 軽い遅延
+          await new Promise(r => setTimeout(r, 150));
+        } catch (e) {
+          console.warn('バージョン取得失敗:', serverPath, e);
+          versionsTotalSize += originalSize;
+        }
+      }
+      updateProgress('バージョン情報の取得完了');
+
+      // バージョン込み合計サイズを表示
+      const versionsTotalEl = document.getElementById('versions-total-size');
+      const versionsTotalValueEl = document.getElementById('versions-total-size-value');
+      if (versionsTotalEl && versionsTotalValueEl) {
+        versionsTotalValueEl.textContent = formatBytes(versionsTotalSize);
+        versionsTotalEl.style.display = '';
+      }
+
+      // スピナーを非表示
+      if (spinner) spinner.style.display = 'none';
+    }
+
+    if (chk) {
+      chk.addEventListener('change', async (e) => {
+        const show = e.target.checked;
+        setVersionsColumnsVisible(show);
+        if (show) {
+          // 初回取得：既に取得済みのものはスキップして非同期で順次取得
+          fetchVersionsForVisibleFiles().catch(err => console.warn('初回バージョン取得でエラー:', err));
+        }
+      });
+    }
+    // 初期状態ではバージョン列を非表示
+    try { setVersionsColumnsVisible(false); } catch (e) { /* ignore */ }
   }
 
   // ローディング表示
@@ -1260,6 +1458,10 @@
         }
         showLoading(); // 再度ローディングを表示
       }
+
+      // 現在のサイト情報を設定
+      currentSiteInfo.absoluteUrl = selectedSite.url;
+      currentSiteInfo.serverRelativeUrl = selectedSite.serverRelativeUrl || (new URL(selectedSite.url)).pathname || '';
 
       updateProgress(`サイト「${selectedSite.title}」のドキュメントライブラリを取得中...`);
 
