@@ -904,8 +904,8 @@
     return html;
   }
 
-  // フィルター適用
-  function applyFilter() {
+  // フィルター適用（versionsフィルターは保護）
+  function applyRowFilter() {
     const showFiles = document.getElementById('filter-files').checked;
     const showFolders = document.getElementById('filter-folders').checked;
     const searchText = document.getElementById('filter-search').value.toLowerCase();
@@ -938,21 +938,34 @@
         extMatch = rowExt === extFilter;
       }
 
-      // 両方の条件を満たす場合のみ表示
+      // 基本フィルター条件を満たす場合のみ表示対象とする
+      // ただし、versionsフィルターで既に非表示の場合はそれを維持
       if (typeMatch && textMatch && extMatch) {
-        row.style.display = '';
+        // versionsフィルターでの非表示状態をチェック
+        // data-versions-hidden属性で管理
+        if (!row.hasAttribute('data-versions-hidden')) {
+          row.style.display = '';
+        }
       } else {
         row.style.display = 'none';
       }
     });
   }
 
-  // フィルタークリア
+  // 下位互換のためのエイリアス
+  function applyFilter() {
+    applyRowFilter();
+  }
+
+  // フィルタークリア（versionsフィルターは保護）
   function clearFilter() {
     document.getElementById('filter-files').checked = true;
     document.getElementById('filter-folders').checked = true;
     document.getElementById('filter-search').value = '';
-    applyFilter();
+    const extFilterEl = document.getElementById('filter-ext');
+    if (extFilterEl) extFilterEl.value = '';
+    // versionsフィルターは保護するため、applyFilterは呼ばずに行フィルターのみ適用
+    applyRowFilter();
   }
 
   // テーブルをソート
@@ -1030,28 +1043,74 @@
                       align-items: center;
                     ">
                       <h2 style="margin: 0; font-size: 24px;">SharePoint ストレージ詳細 <span style="font-size: 14px; color: #666;">(Search API版)</span></h2>
-                      <div style="display:flex; align-items:center; gap:12px;">
-                        <label style="display:flex; align-items:center; gap:6px; font-size:14px;">
-                        <input type="checkbox" id="chk-show-versions-columns" style="cursor:pointer;">
-                        <span>バージョンを含める（初回のみ取得）</span>
-                        <div id="version-spinner" style="display:none; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; width: 16px; height: 16px; animation: spin 2s linear infinite;"></div>
-                        </label>
-                        <button id="sp-storage-close" style="
-                          background: #d32f2f;
-                          color: white;
-                          border: none;
-                          padding: 10px 20px;
-                          border-radius: 4px;
-                          cursor: pointer;
-                          font-size: 16px;
-                        ">閉じる</button>
+                      <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                        <div style="display:flex; align-items:center; gap:12px;">
+                          <label style="display:flex; align-items:center; gap:6px; font-size:14px;">
+                          <input type="checkbox" id="chk-show-versions-columns" style="cursor:pointer;">
+                          <span>バージョンを含める</span>
+                          <div id="version-spinner" style="display:none; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; width: 16px; height: 16px; animation: spin 2s linear infinite;"></div>
+                          </label>
+                          <button id="sp-storage-close" style="
+                            background: #d32f2f;
+                            color: white;
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-size: 16px;
+                          ">閉じる</button>
+                        </div>
+                        <div id="version-limit-controls" style="display:none; align-items:center; gap:8px; font-size:13px;">
+                          <label style="display:flex; align-items:center; gap:8px;">
+                            <span>取得件数:</span>
+                            <input type="range" id="version-limit-slider" min="1" max="1000" step="1" value="30" style="width:150px;">
+                            <span id="version-limit-value" style="min-width:60px; font-weight:bold;">上位30件</span>
+                          </label>
+                          <div id="version-progress-container" style="display:none; align-items:center; gap:6px;">
+                            <div class="spinner" style="
+                              border: 2px solid #f3f3f3;
+                              border-top: 2px solid #3498db;
+                              border-radius: 50%;
+                              width: 16px;
+                              height: 16px;
+                              animation: spin 1s linear infinite;
+                            "></div>
+                            <span id="version-progress" style="font-weight:bold; color:#0078d4;">0/30</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
                     <div style="padding: 20px; background: #f5f5f5;">
-                        <div style="display: flex; gap: 30px; font-size: 16px; margin-bottom: 15px;">
+                        <div style="display: flex; flex-direction: column; gap: 10px; font-size: 14px; margin-bottom: 15px;">
+                            <div style="display: flex; gap: 30px;">
+                                <div><strong>合計サイズ:</strong> ${formatBytes(storageData.totalSize)}</div>
+                                <div><strong>ファイル数:</strong> ${storageData.totalFiles.toLocaleString()}</div>
+                                <div><strong>フォルダ数:</strong> ${storageData.totalFolders.toLocaleString()}</div>
+                            </div>
+                            <div id="versions-size-display" style="display:none; padding: 8px; background: #e3f2fd; border-radius: 4px;">
+                              <div style="display: flex; gap: 40px; margin-bottom: 4px;">
+                                <div style="min-width: 120px;"></div>
+                                <div style="min-width: 120px; font-weight: bold;">ファイルサイズ</div>
+                                <div style="min-width: 140px; font-weight: bold;">バージョン込み</div>
+                              </div>
+                              <div id="versions-filtered-row" style="display: flex; gap: 40px; margin-bottom: 2px;">
+                                <div style="min-width: 120px; font-weight: bold;">versions制約有:</div>
+                                <div style="min-width: 120px;"><span id="versions-filtered-file-size">-</span></div>
+                                <div style="min-width: 140px;"><span id="versions-filtered-with-versions-size">-</span></div>
+                              </div>
+                              <div id="versions-total-row" style="display: flex; gap: 40px;">
+                                <div style="min-width: 120px; font-weight: bold;">versions制約無:</div>
+                                <div style="min-width: 120px;"><span id="versions-total-file-size">-</span></div>
+                                <div style="min-width: 140px; color: #999;">-</div>
+                              </div>
+                              <div style="margin-top: 4px; font-size: 12px; color: #666;">
+                                (<span id="versions-file-count">-</span> のファイルを表示中)
+                              </div>
+                            </div>
+                        </div>
+                        <div style="display: none; gap: 30px; font-size: 16px; margin-bottom: 15px;">
                             <div><strong>合計サイズ:</strong> ${formatBytes(storageData.totalSize)}</div>
-                            <div id="versions-total-size" style="display:none;"><strong>バージョン込み:</strong> <span id="versions-total-size-value">-</span></div>
                             <div><strong>ファイル数:</strong> ${storageData.totalFiles.toLocaleString()}</div>
                             <div><strong>フォルダ数:</strong> ${storageData.totalFolders.toLocaleString()}</div>
                         </div>
@@ -1090,13 +1149,13 @@
                         ">
                             <thead>
                                 <tr style="background: #333; color: white;">
-                                  <th style="padding: 12px; text-align: left; cursor: pointer; width: 30%; position: relative;" data-column="0">名前 ↕</th>
-                                  <th style="padding: 12px; text-align: left; cursor: pointer; width: 10%; position: relative;" data-column="1">サイズ ↕</th>
-                                  <th class="versions-col" style="padding: 12px; text-align: left; cursor: pointer; width: 8%; position: relative; display:none;" data-column="2">バージョン数 ↕</th>
-                                  <th class="versions-col" style="padding: 12px; text-align: left; cursor: pointer; width: 10%; position: relative; display:none;" data-column="3">バージョン合計 ↕</th>
-                                  <th style="padding: 12px; text-align: left; cursor: pointer; width: 8%; position: relative;" data-column="4">拡張子 ↕</th>
-                                  <th style="padding: 12px; text-align: left; width: 14%;" data-column="5" title="ファイル数 / フォルダ数">内容 (ファイル/フォルダ)</th>
-                                  <th style="padding: 12px; text-align: left; cursor: pointer; width: 20%; position: relative;" data-column="6">親フォルダ ↕</th>
+                                  <th style="padding: 12px; text-align: left; cursor: pointer; position: relative;" data-column="0">名前 ↕</th>
+                                  <th style="padding: 12px; text-align: left; cursor: pointer; width: 120px; position: relative;" data-column="1">サイズ ↕</th>
+                                  <th class="versions-col" style="padding: 12px; text-align: left; cursor: pointer; width: 120px; position: relative; display:none;" data-column="2">バージョン数 ↕</th>
+                                  <th class="versions-col" style="padding: 12px; text-align: left; cursor: pointer; width: 140px; position: relative; display:none;" data-column="3">バージョン合計 ↕</th>
+                                  <th style="padding: 12px; text-align: left; cursor: pointer; width: 100px; position: relative;" data-column="4">拡張子 ↕</th>
+                                  <th style="padding: 12px; text-align: left; width: 180px;" data-column="5" title="ファイル数 / フォルダ数">内容 (ファイル/フォルダ)</th>
+                                  <th style="padding: 12px; text-align: left; cursor: pointer; width: 250px; position: relative;" data-column="6">親フォルダ ↕</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1154,24 +1213,25 @@
         const measurer = document.createElement('span');
         measurer.style.visibility = 'hidden';
         measurer.style.whiteSpace = 'nowrap';
+        measurer.style.position = 'absolute';
+        measurer.style.left = '-9999px';
         document.body.appendChild(measurer);
-
-        function measureText(text, styleEl) {
-          measurer.textContent = text;
-          return measurer.offsetWidth;
-        }
 
         tbodyRows.forEach(row => {
           Array.from(row.cells).forEach((cell, idx) => {
             const txt = cell.textContent || '';
-            const w = measureText(txt);
+            measurer.textContent = txt;
+            const w = measurer.offsetWidth;
             if (w > widths[idx]) widths[idx] = w;
           });
         });
 
         // ヘッダーに幅を反映（パディング余裕を少し追加）
+        // ただし、非表示の列（versions-col）はスキップして元の幅を保持
         const ths = table.querySelectorAll('thead th');
         ths.forEach((th, i) => {
+          // 非表示の列はスキップ（初期状態のwidth設定を保持）
+          if (th.classList.contains('versions-col')) return;
           if (widths[i]) th.style.width = (widths[i] + 40) + 'px';
         });
 
@@ -1309,23 +1369,169 @@
       const cols = document.querySelectorAll('.versions-col');
       cols.forEach(c => c.style.display = visible ? '' : 'none');
       // バージョン込み合計サイズの表示も連動
-      const versionsTotalEl = document.getElementById('versions-total-size');
-      if (versionsTotalEl) {
-        versionsTotalEl.style.display = visible ? '' : 'none';
+      const versionsSizeDisplay = document.getElementById('versions-size-display');
+      if (versionsSizeDisplay) {
+        versionsSizeDisplay.style.display = visible ? '' : 'none';
       }
     }
 
-    async function fetchVersionsForVisibleFiles() {
-      // スピナーを表示
-      const spinner = document.getElementById('version-spinner');
-      if (spinner) spinner.style.display = 'inline-block';
+    // 表示フィルタリング関数（上位N件のみ表示）
+    function applyDisplayFilter(displayTopN) {
+      const allRows = Array.from(document.querySelectorAll('#sp-storage-table tbody tr[data-type="file"]'));
+
+      // 全行をサイズでソート（降順）
+      const sortedRows = allRows
+        .map(row => {
+          const sizeCell = row.querySelector('.sp-storage-size');
+          const size = sizeCell ? parseInt(sizeCell.getAttribute('data-size') || '0', 10) : 0;
+          return { row, size };
+        })
+        .sort((a, b) => b.size - a.size);
+
+      // 表示されているファイルのサイズと全ファイルのサイズを計算
+      let displayedFileSize = 0;
+      let displayedWithVersionsSize = 0;
+      let totalAllFilesSize = 0;
+      let totalAllWithVersionsSize = 0;
+
+      // 表示フィルタリング
+      if (displayTopN !== null && displayTopN < sortedRows.length) {
+        sortedRows.forEach((item, index) => {
+          const row = item.row;
+          const serverPath = row.getAttribute('data-path');
+          const sizeCell = row.querySelector('.sp-storage-size');
+          const originalSize = sizeCell ? parseInt(sizeCell.getAttribute('data-size') || '0', 10) : 0;
+
+          // 全ファイルのサイズを集計
+          totalAllFilesSize += originalSize;
+          totalAllWithVersionsSize += originalSize;
+          if (serverPath && versionsCache.has(serverPath)) {
+            const entry = versionsCache.get(serverPath);
+            if (entry && entry.totalSize && !entry.errorStatus) {
+              totalAllWithVersionsSize += entry.totalSize;
+            }
+          }
+
+          // 表示/非表示の切り替え（data-versions-hidden属性で管理）
+          if (index < displayTopN) {
+            row.removeAttribute('data-versions-hidden');
+            // 基本フィルターで表示されている場合のみ表示
+            if (row.style.display !== 'none' || !row.style.display) {
+              row.style.display = '';
+            }
+            // 表示されているファイルのサイズを集計
+            displayedFileSize += originalSize;
+            displayedWithVersionsSize += originalSize;
+            if (serverPath && versionsCache.has(serverPath)) {
+              const entry = versionsCache.get(serverPath);
+              if (entry && entry.totalSize && !entry.errorStatus) {
+                displayedWithVersionsSize += entry.totalSize;
+              }
+            }
+          } else {
+            row.setAttribute('data-versions-hidden', 'true');
+            row.style.display = 'none';
+          }
+        });
+      } else {
+        sortedRows.forEach(item => {
+          const row = item.row;
+          const serverPath = row.getAttribute('data-path');
+          const sizeCell = row.querySelector('.sp-storage-size');
+          const originalSize = sizeCell ? parseInt(sizeCell.getAttribute('data-size') || '0', 10) : 0;
+
+          totalAllFilesSize += originalSize;
+          totalAllWithVersionsSize += originalSize;
+          if (serverPath && versionsCache.has(serverPath)) {
+            const entry = versionsCache.get(serverPath);
+            if (entry && entry.totalSize && !entry.errorStatus) {
+              totalAllWithVersionsSize += entry.totalSize;
+            }
+          }
+
+          row.removeAttribute('data-versions-hidden');
+        });
+        displayedFileSize = totalAllFilesSize;
+        displayedWithVersionsSize = totalAllWithVersionsSize;
+      }
+
+      // サイズ表示を2行表示で更新
+      const versionsFilteredFileSizeEl = document.getElementById('versions-filtered-file-size');
+      const versionsFilteredWithVersionsSizeEl = document.getElementById('versions-filtered-with-versions-size');
+      const versionsTotalFileSizeEl = document.getElementById('versions-total-file-size');
+      const versionsFileCountEl = document.getElementById('versions-file-count');
+      const versionsFilteredRow = document.getElementById('versions-filtered-row');
+
+      if (versionsFilteredFileSizeEl && versionsFilteredWithVersionsSizeEl && versionsTotalFileSizeEl && versionsFileCountEl && versionsFilteredRow) {
+        // 制約有（フィルター後）の表示
+        if (displayTopN !== null && displayTopN < sortedRows.length) {
+          versionsFilteredRow.style.display = 'flex';
+          versionsFilteredFileSizeEl.textContent = formatBytes(displayedFileSize);
+          versionsFilteredWithVersionsSizeEl.textContent = formatBytes(displayedWithVersionsSize);
+          // 件数表示
+          versionsFileCountEl.textContent = `${displayTopN}/${sortedRows.length}件`;
+        } else {
+          versionsFilteredRow.style.display = 'none';
+          // 全件表示時
+          versionsFileCountEl.textContent = `${sortedRows.length}/${sortedRows.length}件`;
+        }
+
+        // 制約無（全体）の表示
+        versionsTotalFileSizeEl.textContent = formatBytes(totalAllFilesSize);
+      }
+    }
+
+    // バージョン情報取得用のasync関数（表示フィルタリング対応）
+    async function fetchVersionsForVisibleFiles(displayTopN, startFrom) {
+      // 進捗表示コンテナとスピナーを表示
+      const progressContainer = document.getElementById('version-progress-container');
+      const progressText = document.getElementById('version-progress');
+      if (progressContainer) progressContainer.style.display = 'flex';
 
       // バージョン込み合計サイズを積算（0から開始）
       let versionsTotalSize = 0;
 
       // 逐次実行（過負荷防止）：1件ずつ遅延を入れて実行
-      const rows = Array.from(document.querySelectorAll('#sp-storage-table tbody tr[data-type="file"]'));
-      for (const row of rows) {
+      const allRows = Array.from(document.querySelectorAll('#sp-storage-table tbody tr[data-type="file"]'));
+
+      // 全行をサイズでソート（降順）
+      const sortedRows = allRows
+        .map(row => {
+          const sizeCell = row.querySelector('.sp-storage-size');
+          const size = sizeCell ? parseInt(sizeCell.getAttribute('data-size') || '0', 10) : 0;
+          return { row, size };
+        })
+        .sort((a, b) => b.size - a.size);
+
+      // displayTopNが指定されている場合は上位N件のみフェッチ、nullの場合は全件フェッチ
+      const rowsToFetch = displayTopN !== null ? sortedRows.slice(0, displayTopN) : sortedRows;
+      const totalToFetch = rowsToFetch.length;
+
+      for (let i = 0; i < rowsToFetch.length; i++) {
+        // 進捗表示を更新
+        if (progressText) {
+          progressText.textContent = `${i + 1}/${totalToFetch}`;
+        }
+
+        // startFromより前はスキップ（既に取得済み）
+        if (i < startFrom) {
+          const item = rowsToFetch[i];
+          const row = item.row;
+          const sizeCell = row.querySelector('.sp-storage-size');
+          const originalSize = sizeCell ? parseInt(sizeCell.getAttribute('data-size') || '0', 10) : 0;
+          versionsTotalSize += originalSize;
+          const serverPath = row.getAttribute('data-path');
+          if (serverPath && versionsCache.has(serverPath)) {
+            const entry = versionsCache.get(serverPath);
+            if (entry && entry.totalSize && !entry.errorStatus) {
+              versionsTotalSize += entry.totalSize;
+            }
+          }
+          continue;
+        }
+
+        const item = rowsToFetch[i];
+        const row = item.row;
         const serverPath = row.getAttribute('data-path');
         if (!serverPath) continue;
 
@@ -1347,7 +1553,7 @@
         }
         // フェッチ
         try {
-          updateProgress(`バージョン情報を取得中: ${serverPath}`);
+          updateProgress(`バージョン情報を取得中 (${i + 1}/${totalToFetch}): ${serverPath}`);
           const entry = await fetchVersionsForFile(serverPath);
           updateRowWithVersions(serverPath, entry);
           // 現在のファイルサイズを加算
@@ -1365,27 +1571,174 @@
       }
       updateProgress('バージョン情報の取得完了');
 
-      // バージョン込み合計サイズを表示
-      const versionsTotalEl = document.getElementById('versions-total-size');
-      const versionsTotalValueEl = document.getElementById('versions-total-size-value');
-      if (versionsTotalEl && versionsTotalValueEl) {
-        versionsTotalValueEl.textContent = formatBytes(versionsTotalSize);
-        versionsTotalEl.style.display = '';
+      // **表示フィルタリング**: displayTopNが指定されている場合、上位N件のみ表示
+      let displayedFileSize = 0; // 表示中のファイルサイズのみ
+      let displayedWithVersionsSize = 0; // 表示中のファイル＋バージョンサイズ
+
+      // 全ファイルの合計サイズを計算（フェッチしていない分も含む）
+      let totalAllFilesSize = 0;
+      let totalAllWithVersionsSize = 0;
+      sortedRows.forEach(item => {
+        const row = item.row;
+        const serverPath = row.getAttribute('data-path');
+        const sizeCell = row.querySelector('.sp-storage-size');
+        const originalSize = sizeCell ? parseInt(sizeCell.getAttribute('data-size') || '0', 10) : 0;
+        totalAllFilesSize += originalSize;
+        totalAllWithVersionsSize += originalSize;
+        if (serverPath && versionsCache.has(serverPath)) {
+          const entry = versionsCache.get(serverPath);
+          if (entry && entry.totalSize && !entry.errorStatus) {
+            totalAllWithVersionsSize += entry.totalSize;
+          }
+        }
+      });
+
+      if (displayTopN !== null && displayTopN < sortedRows.length) {
+        // 上位N件のみ表示、それ以外は非表示
+        sortedRows.forEach((item, index) => {
+          const row = item.row;
+          const serverPath = row.getAttribute('data-path');
+          if (index < displayTopN) {
+            row.removeAttribute('data-versions-hidden');
+            row.style.display = ''; // 表示
+            // 表示されているファイルのサイズを計算
+            const sizeCell = row.querySelector('.sp-storage-size');
+            const originalSize = sizeCell ? parseInt(sizeCell.getAttribute('data-size') || '0', 10) : 0;
+            displayedFileSize += originalSize;
+            displayedWithVersionsSize += originalSize;
+            if (serverPath && versionsCache.has(serverPath)) {
+              const entry = versionsCache.get(serverPath);
+              if (entry && entry.totalSize && !entry.errorStatus) {
+                displayedWithVersionsSize += entry.totalSize;
+              }
+            }
+          } else {
+            row.setAttribute('data-versions-hidden', 'true');
+            row.style.display = 'none'; // 非表示
+          }
+        });
+      } else {
+        // 全件表示
+        sortedRows.forEach(item => {
+          item.row.removeAttribute('data-versions-hidden');
+          item.row.style.display = ''; // 表示
+        });
+        displayedFileSize = totalAllFilesSize;
+        displayedWithVersionsSize = totalAllWithVersionsSize;
       }
 
-      // スピナーを非表示
-      if (spinner) spinner.style.display = 'none';
+      // バージョン込み合計サイズを2行表示で更新
+      const versionsFilteredFileSizeEl = document.getElementById('versions-filtered-file-size');
+      const versionsFilteredWithVersionsSizeEl = document.getElementById('versions-filtered-with-versions-size');
+      const versionsTotalFileSizeEl = document.getElementById('versions-total-file-size');
+      const versionsFileCountEl = document.getElementById('versions-file-count');
+      const versionsFilteredRow = document.getElementById('versions-filtered-row');
+
+      if (versionsFilteredFileSizeEl && versionsFilteredWithVersionsSizeEl && versionsTotalFileSizeEl && versionsFileCountEl && versionsFilteredRow) {
+        // 制約有（フィルター後）の表示
+        if (displayTopN !== null && displayTopN < sortedRows.length) {
+          versionsFilteredRow.style.display = 'flex';
+          versionsFilteredFileSizeEl.textContent = formatBytes(displayedFileSize);
+          versionsFilteredWithVersionsSizeEl.textContent = formatBytes(displayedWithVersionsSize);
+          // 件数表示
+          versionsFileCountEl.textContent = `${displayTopN}/${sortedRows.length}件`;
+        } else {
+          versionsFilteredRow.style.display = 'none';
+          // 全件表示時
+          versionsFileCountEl.textContent = `${sortedRows.length}/${sortedRows.length}件`;
+        }
+
+        // 制約無（全体）の表示
+        versionsTotalFileSizeEl.textContent = formatBytes(totalAllFilesSize);
+      }
+
+      // 進捗表示を非表示
+      if (progressContainer) progressContainer.style.display = 'none';
     }
 
     if (chk) {
+      let currentLimit = null; // null = 全件取得
+
       chk.addEventListener('change', async (e) => {
         const show = e.target.checked;
         setVersionsColumnsVisible(show);
+
         if (show) {
-          // 初回取得：既に取得済みのものはスキップして非同期で順次取得
-          fetchVersionsForVisibleFiles().catch(err => console.warn('初回バージョン取得でエラー:', err));
+          // ファイル総数を取得
+          const totalFiles = document.querySelectorAll('#sp-storage-table tbody tr[data-type="file"]').length;
+          // デフォルト値：ファイル総数の半分（最小1、最大totalFiles）
+          const defaultLimit = Math.max(1, Math.min(Math.floor(totalFiles / 2), totalFiles));
+
+          // 件数入力付き確認ダイアログ表示
+          const userInput = prompt(
+            '大量のファイルがある場合、サイズ上位のファイルのみバージョン情報を取得することで高速化できます。\n\n' +
+            '上位ファイルのみ取得する場合は件数を入力してください（例: ' + defaultLimit + '）\n' +
+            `全件取得する場合は「キャンセル」を押してください\n\n（総ファイル数: ${totalFiles.toLocaleString()}件）`,
+            String(defaultLimit)
+          );
+
+          if (userInput !== null && userInput.trim() !== '') {
+            // 上位n件モード（ユーザー入力値を使用）
+            const inputLimit = parseInt(userInput.trim(), 10);
+            if (!isNaN(inputLimit) && inputLimit > 0) {
+              const limitControls = document.getElementById('version-limit-controls');
+              const slider = document.getElementById('version-limit-slider');
+              if (limitControls && slider) {
+                // まずコントロールを表示
+                limitControls.style.display = 'flex';
+                // スライダーの最小値と最大値を設定
+                slider.min = 1;
+                slider.max = totalFiles;
+                // スライダーの値を更新（ファイル総数を超えないように）
+                const actualLimit = Math.min(inputLimit, totalFiles);
+                slider.value = actualLimit;
+                const valueLabel = document.getElementById('version-limit-value');
+                if (valueLabel) valueLabel.textContent = `上位${actualLimit}件`;
+                currentLimit = actualLimit;
+                fetchVersionsForVisibleFiles(currentLimit, 0).catch(err => console.warn('バージョン取得でエラー:', err));
+              }
+            } else {
+              alert('無効な数値です。全件取得モードで実行します。');
+              currentLimit = null;
+              fetchVersionsForVisibleFiles(null, 0).catch(err => console.warn('バージョン取得でエラー:', err));
+            }
+          } else {
+            // 全件取得モード（キャンセル押下時）
+            currentLimit = null;
+            fetchVersionsForVisibleFiles(null, 0).catch(err => console.warn('バージョン取得でエラー:', err));
+          }
+        } else {
+          // チェックOFF時はスライダーも非表示
+          const limitControls = document.getElementById('version-limit-controls');
+          if (limitControls) limitControls.style.display = 'none';
         }
       });
+
+      // スライダー変更時のハンドラー
+      const slider = document.getElementById('version-limit-slider');
+      const valueLabel = document.getElementById('version-limit-value');
+      if (slider && valueLabel) {
+        slider.addEventListener('input', (e) => {
+          const value = parseInt(e.target.value, 10);
+          valueLabel.textContent = `上位${value}件`;
+        });
+
+        slider.addEventListener('change', async (e) => {
+          const newLimit = parseInt(e.target.value, 10);
+          const oldLimit = currentLimit;
+          currentLimit = newLimit;
+
+          if (chk.checked) {
+            if (oldLimit !== null && newLimit > oldLimit) {
+              // 件数を増やした場合：追加分をフェッチ
+              await fetchVersionsForVisibleFiles(newLimit, oldLimit);
+            } else {
+              // 件数を減らした場合：表示フィルタのみ更新
+              applyDisplayFilter(newLimit);
+            }
+          }
+        });
+      }
     }
     // 初期状態ではバージョン列を非表示
     try { setVersionsColumnsVisible(false); } catch (e) { /* ignore */ }
