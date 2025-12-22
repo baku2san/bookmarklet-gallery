@@ -1111,11 +1111,6 @@
                               </div>
                             </div>
                         </div>
-                        <div style="display: none; gap: 30px; font-size: 16px; margin-bottom: 15px;">
-                            <div><strong>合計サイズ:</strong> ${formatBytes(storageData.totalSize)}</div>
-                            <div><strong>ファイル数:</strong> ${storageData.totalFiles.toLocaleString()}</div>
-                            <div><strong>フォルダ数:</strong> ${storageData.totalFolders.toLocaleString()}</div>
-                        </div>
                         <div style="margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; font-size: 14px;">
                             <strong>注意:</strong> Search API はクロールベースのため、直前の変更が反映されない場合があります
                         </div>
