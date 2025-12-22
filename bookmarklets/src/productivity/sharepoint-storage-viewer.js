@@ -916,7 +916,7 @@
     rows.forEach(row => {
       const type = row.getAttribute('data-type');
       const nameCell = row.cells[0]?.textContent || '';
-      // 堅牢性: 列順変更に対応するためquerySelectorを使用
+      // 堅牢性: 親フォルダは.parent-pathクラスで取得（列順変更に強い）
       const parentPathSpan = row.querySelector('.parent-path');
       const parentCell = parentPathSpan ? parentPathSpan.textContent : '';
 
