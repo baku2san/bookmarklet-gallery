@@ -769,8 +769,8 @@
             <tr class="sp-storage-row" data-type="${item.type}" data-depth="${level}" data-path="${escapeHtml(item.path)}" data-has-children="${hasChildren}">
                 <td style="word-break: break-word;">${indent}${expandIcon}${icon} <span class="item-name" style="color: #0078d4; cursor: pointer; text-decoration: underline;">${escapeHtml(displayName)}</span></td>
                 <td class="sp-storage-size" data-size="${item.size}">${sizeText}</td>
-                <td class="sp-storage-versions-total versions-col" data-versions-total="">${item.type === 'folder' ? '' : ''}</td>
                 <td class="sp-storage-versions-count versions-col" data-versions-count="">${item.type === 'folder' ? '' : ''}</td>
+                <td class="sp-storage-versions-total versions-col" data-versions-total="">${item.type === 'folder' ? '' : ''}</td>
                 <td class="sp-storage-ext" data-ext="${item.ext || ''}">${item.type === 'file' ? escapeHtml(item.ext || '') : ''}</td>
                 <td>${countText}</td>
                 <td title="${decodedParentPath}" style="word-break: break-word;"><span class="parent-path" style="color: #0078d4; cursor: pointer; text-decoration: underline;">${escapeHtml(decodedParentPath)}</span></td>
@@ -916,7 +916,7 @@
     rows.forEach(row => {
       const type = row.getAttribute('data-type');
       const nameCell = row.cells[0].textContent;
-      const parentCell = row.cells[3].textContent;
+      const parentCell = row.cells[6].textContent;
 
       // タイプチェック
       let typeMatch = false;
@@ -1666,8 +1666,8 @@
         if (show) {
           // ファイル総数を取得
           const totalFiles = document.querySelectorAll('#sp-storage-table tbody tr[data-type="file"]').length;
-          // デフォルト値：ファイル総数の半分（最小1、最大totalFiles）
-          const defaultLimit = Math.max(1, Math.min(Math.floor(totalFiles / 2), totalFiles));
+          // デフォルト値：30件（ファイル総数が少ない場合はその数）
+          const defaultLimit = Math.min(30, totalFiles);
 
           // 件数入力付き確認ダイアログ表示
           const userInput = prompt(
