@@ -1419,7 +1419,7 @@
 
     // ====================
     // 表示フィルタリング関数（上位N件のみ表示）
-    function applyDisplayFilter(displayTopN) {
+    async function applyDisplayFilter(displayTopN) {
       const allRows = Array.from(document.querySelectorAll('#sp-storage-table tbody tr[data-type="file"]'));
 
       // 全行をサイズでソート（降順）
@@ -1443,7 +1443,7 @@
           if (index < displayTopN) {
             row.removeAttribute('data-versions-hidden');
             // 基本フィルターで表示されている場合のみ表示
-            if (row.style.display !== 'none' || !row.style.display) {
+            if (row.style.display !== 'none') {
               row.style.display = '';
             }
           } else {
@@ -1481,6 +1481,9 @@
         // 制約無（全体）の表示
         versionsTotalFileSizeEl.textContent = formatBytes(totalAllFilesSize);
       }
+
+      // 基本フィルター（検索・拡張子）を再適用
+      applyRowFilter();
     }
 
     // バージョン情報取得用のasync関数（表示フィルタリング対応）
@@ -1704,7 +1707,7 @@
               await fetchVersionsForVisibleFiles(newLimit, oldLimit);
             } else {
               // 件数を減らした場合：表示フィルタのみ更新
-              applyDisplayFilter(newLimit);
+              await applyDisplayFilter(newLimit);
             }
           }
         });
