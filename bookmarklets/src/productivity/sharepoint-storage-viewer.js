@@ -1576,54 +1576,8 @@
       }
       updateProgress('バージョン情報の取得完了');
 
-      // **表示フィルタリング**: 共通関数でサイズ計算
-      const { displayedFileSize, displayedWithVersionsSize, totalAllFilesSize, totalAllWithVersionsSize } =
-        calculateRowSizes(sortedRows, displayTopN);
-
-      if (displayTopN !== null && displayTopN < sortedRows.length) {
-        // 上位N件のみ表示、それ以外は非表示
-        sortedRows.forEach((item, index) => {
-          const row = item.row;
-          if (index < displayTopN) {
-            row.removeAttribute('data-versions-hidden');
-            row.style.display = ''; // 表示
-          } else {
-            row.setAttribute('data-versions-hidden', 'true');
-            row.style.display = 'none'; // 非表示
-          }
-        });
-      } else {
-        // 全件表示
-        sortedRows.forEach(item => {
-          item.row.removeAttribute('data-versions-hidden');
-          item.row.style.display = ''; // 表示
-        });
-      }
-
-      // バージョン込み合計サイズを2行表示で更新
-      const versionsFilteredFileSizeEl = document.getElementById('versions-filtered-file-size');
-      const versionsFilteredWithVersionsSizeEl = document.getElementById('versions-filtered-with-versions-size');
-      const versionsTotalFileSizeEl = document.getElementById('versions-total-file-size');
-      const versionsFileCountEl = document.getElementById('versions-file-count');
-      const versionsFilteredRow = document.getElementById('versions-filtered-row');
-
-      if (versionsFilteredFileSizeEl && versionsFilteredWithVersionsSizeEl && versionsTotalFileSizeEl && versionsFileCountEl && versionsFilteredRow) {
-        // 制約有（フィルター後）の表示
-        if (displayTopN !== null && displayTopN < sortedRows.length) {
-          versionsFilteredRow.style.display = 'flex';
-          versionsFilteredFileSizeEl.textContent = formatBytes(displayedFileSize);
-          versionsFilteredWithVersionsSizeEl.textContent = formatBytes(displayedWithVersionsSize);
-          // 件数表示
-          versionsFileCountEl.textContent = `${displayTopN}/${sortedRows.length}件`;
-        } else {
-          versionsFilteredRow.style.display = 'none';
-          // 全件表示時
-          versionsFileCountEl.textContent = `${sortedRows.length}/${sortedRows.length}件`;
-        }
-
-        // 制約無（全体）の表示
-        versionsTotalFileSizeEl.textContent = formatBytes(totalAllFilesSize);
-      }
+      // 表示フィルタリングを適用（共通関数を使用）
+      await applyDisplayFilter(displayTopN);
 
       // 進捗表示を非表示
       if (progressContainer) progressContainer.style.display = 'none';
