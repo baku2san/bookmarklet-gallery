@@ -915,8 +915,10 @@
     const rows = document.querySelectorAll('#sp-storage-table tbody tr');
     rows.forEach(row => {
       const type = row.getAttribute('data-type');
-      const nameCell = row.cells[0].textContent;
-      const parentCell = row.cells[6].textContent;
+      const nameCell = row.cells[0]?.textContent || '';
+      // 堅牢性: 列順変更に対応するためquerySelectorを使用
+      const parentPathSpan = row.querySelector('.parent-path');
+      const parentCell = parentPathSpan ? parentPathSpan.textContent : '';
 
       // タイプチェック
       let typeMatch = false;
@@ -1375,6 +1377,52 @@
       }
     }
 
+    // ====================
+    // 共通サイズ計算関数（DRY原則）
+    function calculateRowSizes(sortedRows, displayTopN) {
+      let displayedFileSize = 0;
+      let displayedWithVersionsSize = 0;
+      let totalAllFilesSize = 0;
+      let totalAllWithVersionsSize = 0;
+
+      sortedRows.forEach((item, index) => {
+        const row = item.row;
+        const serverPath = row.getAttribute('data-path');
+        const sizeCell = row.querySelector('.sp-storage-size');
+        const originalSize = sizeCell ? parseInt(sizeCell.getAttribute('data-size') || '0', 10) : 0;
+
+        // 全ファイルのサイズを集計
+        totalAllFilesSize += originalSize;
+        totalAllWithVersionsSize += originalSize;
+        if (serverPath && versionsCache.has(serverPath)) {
+          const entry = versionsCache.get(serverPath);
+          if (entry && entry.totalSize && !entry.errorStatus) {
+            totalAllWithVersionsSize += entry.totalSize;
+          }
+        }
+
+        // 表示範囲内のファイルのサイズを集計
+        if (displayTopN === null || index < displayTopN) {
+          displayedFileSize += originalSize;
+          displayedWithVersionsSize += originalSize;
+          if (serverPath && versionsCache.has(serverPath)) {
+            const entry = versionsCache.get(serverPath);
+            if (entry && entry.totalSize && !entry.errorStatus) {
+              displayedWithVersionsSize += entry.totalSize;
+            }
+          }
+        }
+      });
+
+      return {
+        displayedFileSize,
+        displayedWithVersionsSize,
+        totalAllFilesSize,
+        totalAllWithVersionsSize
+      };
+    }
+
+    // ====================
     // 表示フィルタリング関数（上位N件のみ表示）
     function applyDisplayFilter(displayTopN) {
       const allRows = Array.from(document.querySelectorAll('#sp-storage-table tbody tr[data-type="file"]'));
@@ -1388,45 +1436,20 @@
         })
         .sort((a, b) => b.size - a.size);
 
-      // 表示されているファイルのサイズと全ファイルのサイズを計算
-      let displayedFileSize = 0;
-      let displayedWithVersionsSize = 0;
-      let totalAllFilesSize = 0;
-      let totalAllWithVersionsSize = 0;
+      // 共通関数でサイズ計算
+      const { displayedFileSize, displayedWithVersionsSize, totalAllFilesSize, totalAllWithVersionsSize } =
+        calculateRowSizes(sortedRows, displayTopN);
 
       // 表示フィルタリング
       if (displayTopN !== null && displayTopN < sortedRows.length) {
         sortedRows.forEach((item, index) => {
           const row = item.row;
-          const serverPath = row.getAttribute('data-path');
-          const sizeCell = row.querySelector('.sp-storage-size');
-          const originalSize = sizeCell ? parseInt(sizeCell.getAttribute('data-size') || '0', 10) : 0;
-
-          // 全ファイルのサイズを集計
-          totalAllFilesSize += originalSize;
-          totalAllWithVersionsSize += originalSize;
-          if (serverPath && versionsCache.has(serverPath)) {
-            const entry = versionsCache.get(serverPath);
-            if (entry && entry.totalSize && !entry.errorStatus) {
-              totalAllWithVersionsSize += entry.totalSize;
-            }
-          }
-
           // 表示/非表示の切り替え（data-versions-hidden属性で管理）
           if (index < displayTopN) {
             row.removeAttribute('data-versions-hidden');
             // 基本フィルターで表示されている場合のみ表示
             if (row.style.display !== 'none' || !row.style.display) {
               row.style.display = '';
-            }
-            // 表示されているファイルのサイズを集計
-            displayedFileSize += originalSize;
-            displayedWithVersionsSize += originalSize;
-            if (serverPath && versionsCache.has(serverPath)) {
-              const entry = versionsCache.get(serverPath);
-              if (entry && entry.totalSize && !entry.errorStatus) {
-                displayedWithVersionsSize += entry.totalSize;
-              }
             }
           } else {
             row.setAttribute('data-versions-hidden', 'true');
@@ -1435,24 +1458,8 @@
         });
       } else {
         sortedRows.forEach(item => {
-          const row = item.row;
-          const serverPath = row.getAttribute('data-path');
-          const sizeCell = row.querySelector('.sp-storage-size');
-          const originalSize = sizeCell ? parseInt(sizeCell.getAttribute('data-size') || '0', 10) : 0;
-
-          totalAllFilesSize += originalSize;
-          totalAllWithVersionsSize += originalSize;
-          if (serverPath && versionsCache.has(serverPath)) {
-            const entry = versionsCache.get(serverPath);
-            if (entry && entry.totalSize && !entry.errorStatus) {
-              totalAllWithVersionsSize += entry.totalSize;
-            }
-          }
-
-          row.removeAttribute('data-versions-hidden');
+          item.row.removeAttribute('data-versions-hidden');
         });
-        displayedFileSize = totalAllFilesSize;
-        displayedWithVersionsSize = totalAllWithVersionsSize;
       }
 
       // サイズ表示を2行表示で更新
@@ -1571,47 +1578,17 @@
       }
       updateProgress('バージョン情報の取得完了');
 
-      // **表示フィルタリング**: displayTopNが指定されている場合、上位N件のみ表示
-      let displayedFileSize = 0; // 表示中のファイルサイズのみ
-      let displayedWithVersionsSize = 0; // 表示中のファイル＋バージョンサイズ
-
-      // 全ファイルの合計サイズを計算（フェッチしていない分も含む）
-      let totalAllFilesSize = 0;
-      let totalAllWithVersionsSize = 0;
-      sortedRows.forEach(item => {
-        const row = item.row;
-        const serverPath = row.getAttribute('data-path');
-        const sizeCell = row.querySelector('.sp-storage-size');
-        const originalSize = sizeCell ? parseInt(sizeCell.getAttribute('data-size') || '0', 10) : 0;
-        totalAllFilesSize += originalSize;
-        totalAllWithVersionsSize += originalSize;
-        if (serverPath && versionsCache.has(serverPath)) {
-          const entry = versionsCache.get(serverPath);
-          if (entry && entry.totalSize && !entry.errorStatus) {
-            totalAllWithVersionsSize += entry.totalSize;
-          }
-        }
-      });
+      // **表示フィルタリング**: 共通関数でサイズ計算
+      const { displayedFileSize, displayedWithVersionsSize, totalAllFilesSize, totalAllWithVersionsSize } =
+        calculateRowSizes(sortedRows, displayTopN);
 
       if (displayTopN !== null && displayTopN < sortedRows.length) {
         // 上位N件のみ表示、それ以外は非表示
         sortedRows.forEach((item, index) => {
           const row = item.row;
-          const serverPath = row.getAttribute('data-path');
           if (index < displayTopN) {
             row.removeAttribute('data-versions-hidden');
             row.style.display = ''; // 表示
-            // 表示されているファイルのサイズを計算
-            const sizeCell = row.querySelector('.sp-storage-size');
-            const originalSize = sizeCell ? parseInt(sizeCell.getAttribute('data-size') || '0', 10) : 0;
-            displayedFileSize += originalSize;
-            displayedWithVersionsSize += originalSize;
-            if (serverPath && versionsCache.has(serverPath)) {
-              const entry = versionsCache.get(serverPath);
-              if (entry && entry.totalSize && !entry.errorStatus) {
-                displayedWithVersionsSize += entry.totalSize;
-              }
-            }
           } else {
             row.setAttribute('data-versions-hidden', 'true');
             row.style.display = 'none'; // 非表示
@@ -1623,8 +1600,6 @@
           item.row.removeAttribute('data-versions-hidden');
           item.row.style.display = ''; // 表示
         });
-        displayedFileSize = totalAllFilesSize;
-        displayedWithVersionsSize = totalAllWithVersionsSize;
       }
 
       // バージョン込み合計サイズを2行表示で更新
