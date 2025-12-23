@@ -1442,13 +1442,8 @@
           // 表示/非表示の切り替え（data-versions-hidden属性で管理）
           if (index < displayTopN) {
             row.removeAttribute('data-versions-hidden');
-            // 基本フィルターで表示されている場合のみ表示
-            if (row.style.display !== 'none') {
-              row.style.display = '';
-            }
           } else {
             row.setAttribute('data-versions-hidden', 'true');
-            row.style.display = 'none';
           }
         });
       } else {
