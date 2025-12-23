@@ -1,15 +1,10 @@
 name: 🚀 Deploy Bookmarklet Gallery to GitHub Pages
 
 on:
-  # mainブランチへのpush時に実行
+  # mainブランチへのpush時に実行（PRマージも含む）
   push:
-    branches: [ "main" ]
-  
-  # PRのmainブランチへのマージ時に実行
-  pull_request:
-    branches: [ "main" ]
-    types: [ closed ]
-  
+    branches: ['main']
+
   # 手動実行も可能
   workflow_dispatch:
 
@@ -21,7 +16,7 @@ permissions:
 
 # 同時実行制限（最新のデプロイのみ実行）
 concurrency:
-  group: "pages"
+  group: 'pages'
   cancel-in-progress: false
 
 jobs:
@@ -29,78 +24,78 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: 📥 Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: 🟢 Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: './bookmarklets/package.json'
-        
-    - name: 📦 Install dependencies
-      working-directory: ./bookmarklets
-      run: npm ci
-      
-    - name: 🔨 Build bookmarklets
-      working-directory: ./bookmarklets
-      run: npm run build
-      
-    - name: 📁 Prepare GitHub Pages content
-      run: |
-        # GitHub Pagesのルートディレクトリを作成
-        mkdir -p ./dist
-        
-        # ビルドされたdist/install.htmlをindex.htmlとしてコピー
-        cp ./bookmarklets/dist/install.html ./dist/index.html
-        
-        # 開発者向けページ（dev.html）もコピー
-        if [ -f "./bookmarklets/dist/dev.html" ]; then
-          cp ./bookmarklets/dist/dev.html ./dist/dev.html
-          echo "📄 開発者向けページ（dev.html）をコピーしました"
-        else
-          echo "⚠️ dev.html が見つかりません"
-        fi
-        
-        # テストページが存在する場合のみコピー（設定でincludeInBuild: trueの場合）
-        if [ -d "./bookmarklets/dist/test-pages" ]; then
-          cp -r ./bookmarklets/dist/test-pages ./dist/
-          echo "📄 テストページをコピーしました"
-        else
-          echo "🚫 テストページはビルドに含まれていません（開発専用）"
-        fi
-        
-        # READMEもコピー
-        cp ./README.md ./dist/
-        
-        echo "📋 Generated files:"
-        ls -la ./dist/
-        
-    - name: 🔧 Setup GitHub Pages
-      uses: actions/configure-pages@v4
-      
-    - name: 📤 Upload Pages artifact
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: './dist'
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: './bookmarklets/package.json'
+
+      - name: 📦 Install dependencies
+        working-directory: ./bookmarklets
+        run: npm ci
+
+      - name: 🔨 Build bookmarklets
+        working-directory: ./bookmarklets
+        run: npm run build
+
+      - name: 📁 Prepare GitHub Pages content
+        run: |
+          # GitHub Pagesのルートディレクトリを作成
+          mkdir -p ./dist
+
+          # ビルドされたdist/install.htmlをindex.htmlとしてコピー
+          cp ./bookmarklets/dist/install.html ./dist/index.html
+
+          # 開発者向けページ（dev.html）もコピー
+          if [ -f "./bookmarklets/dist/dev.html" ]; then
+            cp ./bookmarklets/dist/dev.html ./dist/dev.html
+            echo "📄 開発者向けページ（dev.html）をコピーしました"
+          else
+            echo "⚠️ dev.html が見つかりません"
+          fi
+
+          # テストページが存在する場合のみコピー（設定でincludeInBuild: trueの場合）
+          if [ -d "./bookmarklets/dist/test-pages" ]; then
+            cp -r ./bookmarklets/dist/test-pages ./dist/
+            echo "📄 テストページをコピーしました"
+          else
+            echo "🚫 テストページはビルドに含まれていません（開発専用）"
+          fi
+
+          # READMEもコピー
+          cp ./README.md ./dist/
+
+          echo "📋 Generated files:"
+          ls -la ./dist/
+
+      - name: 🔧 Setup GitHub Pages
+        uses: actions/configure-pages@v4
+
+      - name: 📤 Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
 
   # デプロイジョブ
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    
+
     # GitHub Pages環境での実行
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-      
+
     steps:
-    - name: 🌐 Deploy to GitHub Pages
-      id: deployment
-      uses: actions/deploy-pages@v4
-      
-    - name: ✅ Deployment complete
-      run: |
-        echo "🎉 Successfully deployed to GitHub Pages!"
-        echo "📍 Site URL: ${{ steps.deployment.outputs.page_url }}"
+      - name: 🌐 Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: ✅ Deployment complete
+        run: |
+          echo "🎉 Successfully deployed to GitHub Pages!"
+          echo "📍 Site URL: ${{ steps.deployment.outputs.page_url }}"
