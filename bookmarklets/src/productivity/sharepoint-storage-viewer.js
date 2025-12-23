@@ -1572,7 +1572,11 @@
       updateProgress('バージョン情報の取得完了');
 
       // 表示フィルタリングを適用（共通関数を使用）
-      await applyDisplayFilter(displayTopN);
+      try {
+        await applyDisplayFilter(displayTopN);
+      } catch (error) {
+        console.warn('表示フィルタリングエラー:', error);
+      }
 
       // 進捗表示を非表示
       if (progressContainer) progressContainer.style.display = 'none';
