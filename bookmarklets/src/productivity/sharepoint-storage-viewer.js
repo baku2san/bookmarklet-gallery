@@ -1210,9 +1210,8 @@
         // 仮の要素を使ってテキスト幅を計測
         const measurer = document.createElement('span');
         measurer.style.visibility = 'hidden';
-        measurer.style.whiteSpace = 'nowrap';
         measurer.style.position = 'absolute';
-        measurer.style.left = '-9999px';
+        measurer.style.whiteSpace = 'nowrap';
         document.body.appendChild(measurer);
 
         tbodyRows.forEach(row => {
