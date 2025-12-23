@@ -915,8 +915,9 @@
     const rows = document.querySelectorAll('#sp-storage-table tbody tr');
     rows.forEach(row => {
       const type = row.getAttribute('data-type');
-      const nameCell = row.cells[0]?.textContent || '';
-      // 堅牢性: 親フォルダは.parent-pathクラスで取得（列順変更に強い）
+      // 堅牢性: クラスセレクタで取得（列順変更に強い）
+      const nameSpan = row.querySelector('.item-name');
+      const nameCell = nameSpan ? nameSpan.textContent : '';
       const parentPathSpan = row.querySelector('.parent-path');
       const parentCell = parentPathSpan ? parentPathSpan.textContent : '';
 
